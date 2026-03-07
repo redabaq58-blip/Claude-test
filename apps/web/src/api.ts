@@ -243,6 +243,85 @@ export const historyApi = {
   },
 }
 
+// ─── Conversations API ────────────────────────────────────────────────────────
+
+export interface ConversationMessage {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  timestamp: string
+  usage?: { inputTokens: number; outputTokens: number; costUsd: number; model: string }
+}
+
+export interface Conversation {
+  id: string
+  agentId: string
+  title: string
+  messages?: ConversationMessage[]
+  totalCostUsd: number
+  createdAt: string
+  updatedAt: string
+}
+
+export const conversationsApi = {
+  list: () => request<Conversation[]>('/conversations'),
+  get: (id: string) => request<Conversation>(`/conversations/${id}`),
+  create: (agentId: string, message: string) =>
+    request<Conversation>('/conversations', { method: 'POST', body: JSON.stringify({ agentId, message }) }),
+  rename: (id: string, title: string) =>
+    request<{ id: string; title: string }>(`/conversations/${id}/title`, {
+      method: 'PATCH',
+      body: JSON.stringify({ title }),
+    }),
+  delete: (id: string) =>
+    request<{ deleted: boolean }>(`/conversations/${id}`, { method: 'DELETE' }),
+}
+
+// ─── Compare API ──────────────────────────────────────────────────────────────
+
+export interface CompareResult {
+  model: string
+  output: string
+  inputTokens: number
+  outputTokens: number
+  costUsd: number
+  durationMs: number
+  badges: string[]
+  error: string | null
+}
+
+export const compareApi = {
+  compare: (prompt: string, systemPrompt?: string, models?: string[]) =>
+    request<{ results: CompareResult[]; prompt: string }>('/compare', {
+      method: 'POST',
+      body: JSON.stringify({ prompt, systemPrompt, models }),
+    }),
+}
+
+// ─── Prompt enhance API ───────────────────────────────────────────────────────
+
+export interface EnhanceResult {
+  original: string
+  enhanced: string
+  improvements: string[]
+  model: string
+}
+
+export const enhancePrompt = (prompt: string, style?: 'detailed' | 'concise' | 'structured') =>
+  request<EnhanceResult>('/prompts/enhance', {
+    method: 'POST',
+    body: JSON.stringify({ prompt, style }),
+  })
+
+// ─── Agent clone/export/import ────────────────────────────────────────────────
+
+export const agentCloneExportApi = {
+  clone: (id: string) => request<Agent>(`/agents/${id}/clone`, { method: 'POST' }),
+  exportUrl: (id: string) => `${BASE}/agents/${id}/export`,
+  import: (data: unknown) =>
+    request<Agent>('/agents/import', { method: 'POST', body: JSON.stringify(data) }),
+}
+
 // ─── Streaming helper ────────────────────────────────────────────────────────
 
 export interface StreamChunk {

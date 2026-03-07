@@ -12,6 +12,8 @@ import { streamRouter } from './routes/stream.js'
 import { runsRouter } from './routes/runs.js'
 import { templatesRouter } from './routes/templates.js'
 import { promptsRouter } from './routes/prompts.js'
+import { conversationsRouter } from './routes/conversations.js'
+import { compareRouter } from './routes/compare.js'
 import { errorHandler, notFound } from './middleware/response.js'
 
 const app = express()
@@ -45,6 +47,8 @@ app.use('/api/analytics', analyticsRouter)
 app.use('/api/runs', runsRouter)
 app.use('/api/templates', templatesRouter)
 app.use('/api/prompts', promptsRouter)
+app.use('/api/conversations', conversationsRouter)
+app.use('/api/compare', compareRouter)
 
 // ─── Error handlers ───────────────────────────────────────────────────────────
 

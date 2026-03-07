@@ -159,6 +159,71 @@ agentsRouter.post('/:id/run', async (req, res) => {
   }
 })
 
+// POST /api/agents/:id/clone — duplicate agent with new id
+agentsRouter.post('/:id/clone', async (req, res) => {
+  const [original] = await db.select().from(schema.agents).where(eq(schema.agents.id, req.params.id))
+  if (!original) return fail(res, 'Agent not found', 404)
+
+  const cloned = {
+    ...original,
+    id: uuidv4(),
+    name: `Copy of ${original.name}`,
+    createdAt: undefined as unknown as string,
+    updatedAt: undefined as unknown as string,
+  }
+  delete (cloned as Record<string, unknown>).createdAt
+  delete (cloned as Record<string, unknown>).updatedAt
+
+  await db.insert(schema.agents).values(cloned)
+  const [created] = await db.select().from(schema.agents).where(eq(schema.agents.id, cloned.id))
+  ok(res, created)
+})
+
+// GET /api/agents/:id/export — export agent as JSON
+agentsRouter.get('/:id/export', async (req, res) => {
+  const [agent] = await db.select().from(schema.agents).where(eq(schema.agents.id, req.params.id))
+  if (!agent) return fail(res, 'Agent not found', 404)
+
+  const exportData = {
+    claudeforge_version: '1.0',
+    exported_at: new Date().toISOString(),
+    agent: {
+      name: agent.name,
+      description: agent.description,
+      model: agent.model,
+      systemPrompt: agent.systemPrompt,
+      maxTokens: agent.maxTokens,
+      temperature: agent.temperature,
+    },
+  }
+
+  res.setHeader('Content-Type', 'application/json')
+  res.setHeader('Content-Disposition', `attachment; filename="${agent.name.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-agent.json"`)
+  res.send(JSON.stringify(exportData, null, 2))
+})
+
+// POST /api/agents/import — import agent from JSON
+agentsRouter.post('/import', async (req, res) => {
+  const { claudeforge_version, agent: agentData } = req.body
+  if (!claudeforge_version || !agentData?.name) {
+    return fail(res, 'Invalid export file format. Expected claudeforge_version and agent fields.')
+  }
+
+  const newAgent = {
+    id: uuidv4(),
+    name: agentData.name,
+    description: agentData.description ?? '',
+    model: agentData.model ?? 'auto',
+    systemPrompt: agentData.systemPrompt ?? '',
+    maxTokens: agentData.maxTokens ?? 8192,
+    temperature: agentData.temperature ?? 1.0,
+  }
+
+  await db.insert(schema.agents).values(newAgent)
+  const [created] = await db.select().from(schema.agents).where(eq(schema.agents.id, newAgent.id))
+  ok(res, created)
+})
+
 // GET /api/agents/:id/runs — get run history for an agent
 agentsRouter.get('/:id/runs', async (req, res) => {
   const limit = parseInt(req.query.limit as string ?? '20', 10)

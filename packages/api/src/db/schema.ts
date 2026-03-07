@@ -89,7 +89,18 @@ export const skills = sqliteTable('skills', {
   createdAt: text('created_at').default(sql`(datetime('now'))`),
 })
 
-// ─── Usage Events ─────────────────────────────────────────────────────────────
+// ─── Conversations ────────────────────────────────────────────────────────────
+
+export const conversations = sqliteTable('conversations', {
+  id: text('id').primaryKey(),
+  agentId: text('agent_id').notNull(),
+  title: text('title').default('New Conversation'),
+  messages: text('messages').notNull().default('[]'), // JSON: [{role,content,timestamp,usage?}]
+  totalCostUsd: real('total_cost_usd').default(0),
+  createdAt: text('created_at').default(sql`(datetime('now'))`),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`),
+})
+
 
 export const usageEvents = sqliteTable('usage_events', {
   id: text('id').primaryKey(),

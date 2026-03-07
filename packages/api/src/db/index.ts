@@ -99,6 +99,16 @@ export function initDb(): void {
       created_at TEXT DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS conversations (
+      id TEXT PRIMARY KEY,
+      agent_id TEXT NOT NULL,
+      title TEXT DEFAULT 'New Conversation',
+      messages TEXT NOT NULL DEFAULT '[]',
+      total_cost_usd REAL DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+
     CREATE TABLE IF NOT EXISTS usage_events (
       id TEXT PRIMARY KEY,
       agent_run_id TEXT,

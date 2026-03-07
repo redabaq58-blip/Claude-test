@@ -114,3 +114,61 @@ promptsRouter.get('/:category/:id', (req, res) => {
     fail(res, err instanceof Error ? err.message : 'Failed to parse prompt', 500)
   }
 })
+
+// POST /api/prompts/enhance — use Claude Haiku to improve a prompt
+promptsRouter.post('/enhance', async (req, res) => {
+  const { prompt, context, style } = req.body
+  if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
+    return fail(res, 'prompt is required')
+  }
+
+  // Lazy import to avoid top-level issues
+  const { ClaudeClient } = await import('@claudeforge/core')
+  const client = new ClaudeClient()
+
+  const styleGuide =
+    style === 'concise'
+      ? 'Make the enhanced prompt more concise and direct.'
+      : style === 'structured'
+      ? 'Structure the enhanced prompt with clear sections or steps.'
+      : 'Make the enhanced prompt detailed, specific, and effective.'
+
+  const systemPrompt = `You are a prompt engineering expert. Your job is to improve user-provided prompts to get dramatically better results from Claude.
+
+Rules:
+1. Preserve the user's original intent completely
+2. Add specificity, context, and clarity where missing
+3. Include output format guidance if helpful (e.g., "respond in bullet points", "provide a step-by-step breakdown")
+4. Add role framing if it would help (e.g., "You are an expert...")
+5. ${styleGuide}
+6. NEVER change the core task — only enhance HOW it's expressed
+
+Respond with ONLY valid JSON in this exact format (no markdown, no explanation):
+{
+  "enhanced": "<the improved prompt>",
+  "improvements": ["<what you changed 1>", "<what you changed 2>", ...]
+}`
+
+  const userMessage = `Original prompt: "${prompt.trim()}"${context ? `\n\nContext about how this will be used: ${context}` : ''}`
+
+  try {
+    const response = await client.ask(userMessage, {
+      model: 'claude-haiku-4-5-20251001',
+      systemPrompt,
+      maxTokens: 1024,
+    })
+
+    // Strip markdown code fences if present
+    const cleaned = response.replace(/^```(?:json)?\n?/m, '').replace(/\n?```$/m, '').trim()
+    const parsed = JSON.parse(cleaned) as { enhanced: string; improvements: string[] }
+
+    ok(res, {
+      original: prompt.trim(),
+      enhanced: parsed.enhanced,
+      improvements: parsed.improvements ?? [],
+      model: 'claude-haiku-4-5-20251001',
+    })
+  } catch (err) {
+    fail(res, err instanceof Error ? err.message : 'Enhancement failed', 500)
+  }
+})

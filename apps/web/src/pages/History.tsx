@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { historyApi } from '../api'
 import type { RunRecord } from '../api'
+import MarkdownRenderer from '../components/MarkdownRenderer'
 
 const STATUS_COLORS: Record<string, string> = {
   completed: 'bg-green-950 text-green-400 border-green-800',
@@ -217,8 +218,8 @@ export default function History() {
                   {run.output && (
                     <div>
                       <p className="text-xs text-gray-600 mb-2 font-medium uppercase tracking-wide">Output</p>
-                      <div className="bg-gray-800/60 rounded-lg p-3 text-gray-300 text-sm whitespace-pre-wrap max-h-60 overflow-y-auto">
-                        {run.output}
+                      <div className="bg-gray-800/60 rounded-lg p-3 max-h-80 overflow-y-auto">
+                        <MarkdownRenderer content={run.output} />
                       </div>
                     </div>
                   )}

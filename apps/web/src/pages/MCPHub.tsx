@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { mcpApi } from '../api'
 import type { McpServer } from '../api'
 
@@ -162,8 +162,8 @@ export default function MCPHub() {
             </thead>
             <tbody>
               {servers.map((server) => (
-                <>
-                  <tr key={server.id} className="border-b border-gray-800 last:border-0 hover:bg-gray-800/20">
+                <React.Fragment key={server.id}>
+                  <tr className="border-b border-gray-800 last:border-0 hover:bg-gray-800/20">
                     <td className="px-6 py-3 font-medium text-white font-mono text-xs">{server.name}</td>
                     <td className="px-6 py-3 text-gray-400">{server.type}</td>
                     <td className="px-6 py-3"><StatusBadge status={server.status} /></td>
@@ -193,7 +193,7 @@ export default function MCPHub() {
                       </td>
                     </tr>
                   )}
-                </>
+                </React.Fragment>
               ))}
             </tbody>
           </table>

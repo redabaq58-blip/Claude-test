@@ -4,13 +4,17 @@ import AgentStudio from './pages/AgentStudio'
 import Workflows from './pages/Workflows'
 import MCPHub from './pages/MCPHub'
 import Analytics from './pages/Analytics'
+import Templates from './pages/Templates'
+import History from './pages/History'
 
 const NAV = [
   { to: '/', label: 'Dashboard', icon: '⬡' },
   { to: '/agents', label: 'Agent Studio', icon: '◈' },
+  { to: '/templates', label: 'Templates', icon: '⬛' },
   { to: '/workflows', label: 'Workflows', icon: '⟳' },
   { to: '/mcp', label: 'MCP Hub', icon: '⬢' },
   { to: '/analytics', label: 'Analytics', icon: '◎' },
+  { to: '/history', label: 'History', icon: '◷' },
 ]
 
 export default function App() {
@@ -60,6 +64,8 @@ export default function App() {
             <Route path="/workflows" element={<Workflows />} />
             <Route path="/mcp" element={<MCPHub />} />
             <Route path="/analytics" element={<Analytics />} />
+            <Route path="/templates" element={<Templates />} />
+            <Route path="/history" element={<History />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>

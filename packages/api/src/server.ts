@@ -8,6 +8,10 @@ import { workflowsRouter } from './routes/workflows.js'
 import { mcpRouter } from './routes/mcp.js'
 import { skillsRouter } from './routes/skills.js'
 import { analyticsRouter } from './routes/analytics.js'
+import { streamRouter } from './routes/stream.js'
+import { runsRouter } from './routes/runs.js'
+import { templatesRouter } from './routes/templates.js'
+import { promptsRouter } from './routes/prompts.js'
 import { errorHandler, notFound } from './middleware/response.js'
 
 const app = express()
@@ -33,10 +37,14 @@ app.get('/health', (_req, res) => {
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
 app.use('/api/agents', agentsRouter)
+app.use('/api/agents', streamRouter)
 app.use('/api/workflows', workflowsRouter)
 app.use('/api/mcp', mcpRouter)
 app.use('/api/skills', skillsRouter)
 app.use('/api/analytics', analyticsRouter)
+app.use('/api/runs', runsRouter)
+app.use('/api/templates', templatesRouter)
+app.use('/api/prompts', promptsRouter)
 
 // ─── Error handlers ───────────────────────────────────────────────────────────
 
@@ -57,11 +65,12 @@ app.listen(PORT, () => {
   Health: http://localhost:${PORT}/health
 
   Endpoints:
-    POST /api/agents
-    POST /api/agents/:id/run
-    POST /api/workflows/:id/run
-    POST /api/mcp/servers
-    GET  /api/analytics/costs
+    POST /api/agents/:id/run      — Run agent
+    POST /api/agents/:id/stream   — Stream response (SSE)
+    GET  /api/templates           — Agent templates
+    GET  /api/prompts             — Prompt library
+    GET  /api/runs                — All run history
+    GET  /api/analytics/costs     — Cost analytics
   `)
 })
 

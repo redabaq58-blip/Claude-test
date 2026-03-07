@@ -162,3 +162,130 @@ export const analyticsApi = {
       `/analytics/usage?days=${days}`
     ),
 }
+
+// ─── Templates API ────────────────────────────────────────────────────────────
+
+export interface AgentTemplate {
+  id: string
+  name: string
+  description: string
+  icon: string
+  category: string
+  model: string
+  systemPrompt: string
+  suggestedPrompts: string[]
+  tags: string[]
+}
+
+export const templatesApi = {
+  list: () => request<AgentTemplate[]>('/templates'),
+  get: (id: string) => request<AgentTemplate>(`/templates/${id}`),
+  create: (id: string, name?: string) =>
+    request<{ agent: Agent; template: AgentTemplate }>(`/templates/${id}/create`, {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    }),
+}
+
+// ─── Prompts API ──────────────────────────────────────────────────────────────
+
+export interface Prompt {
+  id: string
+  title: string
+  description: string
+  category: string
+  model: string
+  tags: string[]
+  content: string
+  variables: string[]
+}
+
+export const promptsApi = {
+  list: () => request<Prompt[]>('/prompts'),
+  byCategory: (category: string) => request<Prompt[]>(`/prompts/category/${category}`),
+}
+
+// ─── History API ──────────────────────────────────────────────────────────────
+
+export interface RunRecord {
+  id: string
+  agent_id: string
+  agent_name: string
+  status: string
+  input: string
+  output: string
+  error?: string
+  input_tokens: number
+  output_tokens: number
+  cost_usd: number
+  duration_ms: number
+  model: string
+  created_at: string
+  started_at: string
+  completed_at?: string
+}
+
+export const historyApi = {
+  list: async (params?: { agentId?: string; status?: string; from?: string; to?: string; limit?: number; offset?: number }): Promise<{ data: RunRecord[]; total: number }> => {
+    const qs = new URLSearchParams()
+    if (params?.agentId) qs.set('agentId', params.agentId)
+    if (params?.status) qs.set('status', params.status)
+    if (params?.from) qs.set('from', params.from)
+    if (params?.to) qs.set('to', params.to)
+    if (params?.limit) qs.set('limit', String(params.limit))
+    if (params?.offset) qs.set('offset', String(params.offset))
+    const res = await fetch(`${BASE}/runs?${qs.toString()}`, {
+      headers: { 'Content-Type': 'application/json' },
+    })
+    const json = await res.json()
+    if (json.error) throw new Error(json.error)
+    return { data: json.data as RunRecord[], total: json.meta?.total ?? (json.data?.length ?? 0) }
+  },
+}
+
+// ─── Streaming helper ────────────────────────────────────────────────────────
+
+export interface StreamChunk {
+  type: 'text' | 'done' | 'error'
+  text?: string
+  error?: string
+  runId?: string
+  usage?: { inputTokens: number; outputTokens: number; costUsd: number; durationMs: number; model: string }
+}
+
+export async function* streamAgent(agentId: string, input: string): AsyncGenerator<StreamChunk> {
+  const response = await fetch(`/api/agents/${agentId}/stream`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ input }),
+  })
+
+  if (!response.ok || !response.body) {
+    throw new Error(`Stream failed: ${response.status}`)
+  }
+
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split('\n')
+    buffer = lines.pop() ?? ''
+
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
+        try {
+          const chunk = JSON.parse(line.slice(6)) as StreamChunk
+          yield chunk
+          if (chunk.type === 'done' || chunk.type === 'error') return
+        } catch {
+          // skip malformed SSE line
+        }
+      }
+    }
+  }
+}

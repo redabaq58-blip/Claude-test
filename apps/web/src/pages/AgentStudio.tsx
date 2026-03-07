@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { agentsApi } from '../api'
+import { useEffect, useRef, useState } from 'react'
+import { agentsApi, streamAgent } from '../api'
 import type { Agent } from '../api'
 
 const MODELS = [
@@ -25,7 +25,9 @@ export default function AgentStudio() {
   const [editAgent, setEditAgent] = useState<Agent | null>(null)
   const [runInput, setRunInput] = useState<Record<string, string>>({})
   const [runResults, setRunResults] = useState<Record<string, string>>({})
+  const [runUsage, setRunUsage] = useState<Record<string, { costUsd: number; totalTokens: number }>>({})
   const [running, setRunning] = useState<Record<string, boolean>>({})
+  const abortRef = useRef<Record<string, boolean>>({})
 
   const [form, setForm] = useState({
     name: '',
@@ -78,9 +80,25 @@ export default function AgentStudio() {
     if (!input) return
     setRunning((r) => ({ ...r, [agent.id]: true }))
     setRunResults((r) => ({ ...r, [agent.id]: '' }))
+    setRunUsage((u) => ({ ...u, [agent.id]: { costUsd: 0, totalTokens: 0 } }))
+    abortRef.current[agent.id] = false
     try {
-      const run = await agentsApi.run(agent.id, input)
-      setRunResults((r) => ({ ...r, [agent.id]: run.output || run.error || 'No output' }))
+      for await (const chunk of streamAgent(agent.id, input)) {
+        if (abortRef.current[agent.id]) break
+        if (chunk.type === 'text' && chunk.text) {
+          setRunResults((r) => ({ ...r, [agent.id]: (r[agent.id] ?? '') + chunk.text }))
+        } else if (chunk.type === 'done' && chunk.usage) {
+          setRunUsage((u) => ({
+            ...u,
+            [agent.id]: {
+              costUsd: chunk.usage!.costUsd,
+              totalTokens: chunk.usage!.inputTokens + chunk.usage!.outputTokens,
+            },
+          }))
+        } else if (chunk.type === 'error') {
+          setRunResults((r) => ({ ...r, [agent.id]: `Error: ${chunk.error}` }))
+        }
+      }
     } catch (err) {
       setRunResults((r) => ({ ...r, [agent.id]: `Error: ${err instanceof Error ? err.message : String(err)}` }))
     } finally {
@@ -222,19 +240,37 @@ export default function AgentStudio() {
                     placeholder="Enter a prompt to run this agent…"
                     value={runInput[agent.id] ?? ''}
                     onChange={(e) => setRunInput((r) => ({ ...r, [agent.id]: e.target.value }))}
-                    onKeyDown={(e) => e.key === 'Enter' && handleRun(agent)}
+                    onKeyDown={(e) => e.key === 'Enter' && !running[agent.id] && handleRun(agent)}
                   />
                   <button
-                    onClick={() => handleRun(agent)}
-                    disabled={running[agent.id]}
-                    className="px-4 py-2 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
+                    onClick={() => {
+                      if (running[agent.id]) {
+                        abortRef.current[agent.id] = true
+                      } else {
+                        handleRun(agent)
+                      }
+                    }}
+                    className={`px-4 py-2 text-white rounded-lg text-sm font-medium transition-colors ${
+                      running[agent.id]
+                        ? 'bg-red-700 hover:bg-red-800'
+                        : 'bg-brand-600 hover:bg-brand-700'
+                    }`}
                   >
-                    {running[agent.id] ? '…' : 'Run'}
+                    {running[agent.id] ? '■ Stop' : 'Run ▶'}
                   </button>
                 </div>
                 {runResults[agent.id] && (
-                  <div className="mt-3 bg-gray-950 border border-gray-800 rounded-lg p-3 text-sm text-gray-300 whitespace-pre-wrap max-h-48 overflow-auto">
+                  <div className="mt-3 bg-gray-950 border border-gray-800 rounded-lg p-3 text-sm text-gray-300 whitespace-pre-wrap max-h-48 overflow-auto font-mono">
                     {runResults[agent.id]}
+                    {running[agent.id] && (
+                      <span className="inline-block w-1.5 h-4 bg-brand-500 animate-pulse ml-0.5 align-text-bottom" />
+                    )}
+                  </div>
+                )}
+                {runUsage[agent.id]?.costUsd > 0 && !running[agent.id] && (
+                  <div className="mt-1.5 flex gap-4 text-xs text-gray-600">
+                    <span>{runUsage[agent.id].totalTokens.toLocaleString()} tokens</span>
+                    <span>${runUsage[agent.id].costUsd.toFixed(5)}</span>
                   </div>
                 )}
               </div>

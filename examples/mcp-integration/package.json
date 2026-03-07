@@ -1,0 +1,19 @@
+{
+  "name": "mcp-integration-example",
+  "version": "1.0.0",
+  "description": "ClaudeForge: Agent with MCP filesystem + git tools",
+  "scripts": {
+    "start": "tsx index.ts"
+  },
+  "dependencies": {
+    "@claudeforge/core": "*",
+    "@claudeforge/agents": "*",
+    "@claudeforge/mcp": "*",
+    "dotenv": "^16.4.7"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "@types/node": "^22.10.7"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "name": "claude-forge",
+  "version": "1.0.0",
+  "description": "The ultimate Claude/Anthropic agent platform — agents, MCP, skills, hooks, and workflows in one place",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev --parallel",
+    "lint": "turbo run lint",
+    "clean": "turbo run clean",
+    "migrate": "npm run migrate --workspace=packages/api",
+    "start:api": "npm run start --workspace=packages/api",
+    "start:web": "npm run dev --workspace=apps/web"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.3",
+    "prettier": "^3.4.2",
+    "@types/node": "^22.10.7"
+  },
+  "engines": {
+    "node": ">=22.0.0",
+    "npm": ">=10.0.0"
+  }
+}

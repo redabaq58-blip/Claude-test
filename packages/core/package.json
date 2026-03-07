@@ -1,0 +1,19 @@
+{
+  "name": "@claudeforge/core",
+  "version": "1.0.0",
+  "description": "Core Claude SDK wrapper, model router, and shared types for ClaudeForge",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.37.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "@types/node": "^22.10.7"
+  }
+}

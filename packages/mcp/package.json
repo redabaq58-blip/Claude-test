@@ -1,0 +1,20 @@
+{
+  "name": "@claudeforge/mcp",
+  "version": "1.0.0",
+  "description": "Pre-built MCP servers and registry for the ClaudeForge platform",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@claudeforge/core": "*",
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "@types/node": "^22.10.7"
+  }
+}

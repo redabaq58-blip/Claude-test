@@ -1,0 +1,20 @@
+{
+  "name": "@claudeforge/agents",
+  "version": "1.0.0",
+  "description": "ClaudeAgent base class, MultiAgentOrchestrator, hooks, skills, and memory management",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@claudeforge/core": "*",
+    "@anthropic-ai/sdk": "^0.37.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "@types/node": "^22.10.7"
+  }
+}

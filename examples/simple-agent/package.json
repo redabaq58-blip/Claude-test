@@ -1,0 +1,17 @@
+{
+  "name": "simple-agent-example",
+  "version": "1.0.0",
+  "description": "ClaudeForge: Simple single-agent example",
+  "scripts": {
+    "start": "tsx index.ts"
+  },
+  "dependencies": {
+    "@claudeforge/core": "*",
+    "dotenv": "^16.4.7"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "@types/node": "^22.10.7"
+  }
+}

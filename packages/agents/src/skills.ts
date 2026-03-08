@@ -105,12 +105,6 @@ export function loadSkill(skillPath: string): Skill {
   const content = readFileSync(skillFile, 'utf-8')
   const skill = parseSkillMd(content)
 
-  // Load resources from adjacent prompts/ folder
-  const promptsDir = join(resolve(skillFile, '..'), 'prompts')
-  if (existsSync(promptsDir)) {
-    const { readdirSync } = await import('fs').catch(() => ({ readdirSync: () => [] }))
-  }
-
   return skill
 }
 

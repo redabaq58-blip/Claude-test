@@ -70,7 +70,6 @@ export default function MarkdownRenderer({ content, className = '' }: MarkdownRe
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeHighlight]}
         components={{
-          // @ts-expect-error - inline prop from react-markdown
           code: CodeBlock,
 
           // Tables

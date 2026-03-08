@@ -70,7 +70,7 @@ export class MCPRegistry {
       case 'git':
         return createGitTools(opts as Parameters<typeof createGitTools>[0])
       case 'database':
-        return createDatabaseTools(opts as Parameters<typeof createDatabaseTools>[0])
+        return createDatabaseTools(opts as unknown as Parameters<typeof createDatabaseTools>[0])
       case 'code':
         return createCodeTools(opts as Parameters<typeof createCodeTools>[0])
       default:

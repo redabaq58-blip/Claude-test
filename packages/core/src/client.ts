@@ -72,7 +72,7 @@ export class ClaudeClient {
         system: options.systemPrompt,
         messages,
         tools: tools.length > 0 ? tools.map((t) => t.definition as ToolDefinition) : undefined,
-      } as Parameters<typeof this.client.messages.create>[0])
+      } as Parameters<typeof this.client.messages.create>[0]) as Anthropic.Message
 
       const durationMs = Date.now() - startTime
       const inputTokens = response.usage.input_tokens
@@ -135,7 +135,7 @@ export class ClaudeClient {
         system: options.systemPrompt,
         messages: currentMessages,
         tools: tools.length > 0 ? tools.map((t) => t.definition as ToolDefinition) : undefined,
-      } as Parameters<typeof this.client.messages.create>[0])
+      } as Parameters<typeof this.client.messages.create>[0]) as Anthropic.Message
 
       totalInputTokens += response.usage.input_tokens
       totalOutputTokens += response.usage.output_tokens

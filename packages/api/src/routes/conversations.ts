@@ -108,8 +108,6 @@ conversationsRouter.post('/:id/message', async (req, res) => {
       if (chunk.type === 'text' && chunk.text) {
         fullText += chunk.text
         send({ type: 'text', text: chunk.text })
-      } else if (chunk.type === 'usage') {
-        usage = { ...usage, ...chunk }
       }
     }
 

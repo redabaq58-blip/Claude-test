@@ -18,7 +18,7 @@ streamRouter.post('/:id/stream', async (req: Request, res: Response) => {
   const [agentRow] = await db
     .select()
     .from(schema.agents)
-    .where(eq(schema.agents.id, req.params.id))
+    .where(eq(schema.agents.id, req.params.id as string))
 
   if (!agentRow) {
     res.status(404).json({ data: null, error: 'Agent not found' })
@@ -51,7 +51,7 @@ streamRouter.post('/:id/stream', async (req: Request, res: Response) => {
   })
 
   const client = new ClaudeClient()
-  const model = (agentRow.model ?? 'claude-sonnet-4-6') as Parameters<typeof client.stream>[1]['model']
+  const model = (agentRow.model ?? 'claude-sonnet-4-6') as NonNullable<Parameters<typeof client.stream>[1]>['model']
 
   let fullText = ''
   let inputTokens = 0

@@ -2,6 +2,8 @@ import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
+import { resolve } from 'path'
+import { existsSync } from 'fs'
 import { initDb } from './db/index.js'
 import { agentsRouter } from './routes/agents.js'
 import { workflowsRouter } from './routes/workflows.js'
@@ -19,9 +21,15 @@ import { errorHandler, notFound } from './middleware/response.js'
 const app = express()
 const PORT = process.env.PORT ?? 3000
 
+// Resolve path to built web dashboard (works both locally and on Railway)
+// process.cwd() is the repo root when started via npm run start or on Railway
+const webDist = resolve(process.cwd(), 'apps/web/dist')
+const serveWeb = existsSync(webDist)
+
 // ─── Middleware ───────────────────────────────────────────────────────────────
 
-app.use(helmet())
+// Disable CSP so the React dashboard loads correctly when served from this server
+app.use(helmet({ contentSecurityPolicy: false }))
 app.use(cors())
 app.use(express.json({ limit: '5mb' }))
 
@@ -36,7 +44,7 @@ app.get('/health', (_req, res) => {
   })
 })
 
-// ─── Routes ───────────────────────────────────────────────────────────────────
+// ─── API Routes ───────────────────────────────────────────────────────────────
 
 app.use('/api/agents', agentsRouter)
 app.use('/api/agents', streamRouter)
@@ -49,6 +57,19 @@ app.use('/api/templates', templatesRouter)
 app.use('/api/prompts', promptsRouter)
 app.use('/api/conversations', conversationsRouter)
 app.use('/api/compare', compareRouter)
+
+// ─── Serve web dashboard (production) ────────────────────────────────────────
+// When deployed on Railway, the built React app is served from here.
+// In local dev, Vite handles the frontend separately on port 5173.
+
+if (serveWeb) {
+  app.use(express.static(webDist))
+  // SPA fallback — send index.html for any non-API route (React Router handles it)
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path === '/health') return next()
+    res.sendFile(resolve(webDist, 'index.html'))
+  })
+}
 
 // ─── Error handlers ───────────────────────────────────────────────────────────
 
@@ -65,8 +86,9 @@ app.listen(PORT, () => {
 ║   The Ultimate Claude Agent Platform  ║
 ╚═══════════════════════════════════════╝
 
-  Server: http://localhost:${PORT}
-  Health: http://localhost:${PORT}/health
+  Server:    http://localhost:${PORT}
+  Health:    http://localhost:${PORT}/health
+  Dashboard: ${serveWeb ? `http://localhost:${PORT}` : 'http://localhost:5173 (run npm run start:web)'}
 
   Endpoints:
     POST /api/agents/:id/run      — Run agent

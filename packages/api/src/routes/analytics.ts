@@ -8,6 +8,7 @@ export const analyticsRouter = Router()
 // GET /api/analytics/usage — token usage over time
 analyticsRouter.get('/usage', async (req, res) => {
   const days = parseInt(req.query.days as string ?? '30', 10)
+  const interval = sql.raw(`'-${days} days'`)
 
   const rows = await db.all(sql`
     SELECT
@@ -18,7 +19,7 @@ analyticsRouter.get('/usage', async (req, res) => {
       SUM(input_tokens + output_tokens) as total_tokens,
       COUNT(*) as request_count
     FROM usage_events
-    WHERE created_at >= datetime('now', '-${days} days')
+    WHERE created_at >= datetime('now', ${interval})
     GROUP BY date(created_at), model
     ORDER BY date DESC
   `)
@@ -29,6 +30,7 @@ analyticsRouter.get('/usage', async (req, res) => {
 // GET /api/analytics/costs — cost breakdown
 analyticsRouter.get('/costs', async (req, res) => {
   const days = parseInt(req.query.days as string ?? '30', 10)
+  const interval = sql.raw(`'-${days} days'`)
 
   const byModel = await db.all(sql`
     SELECT
@@ -38,7 +40,7 @@ analyticsRouter.get('/costs', async (req, res) => {
       SUM(input_tokens) as total_input_tokens,
       SUM(output_tokens) as total_output_tokens
     FROM usage_events
-    WHERE created_at >= datetime('now', '-${days} days')
+    WHERE created_at >= datetime('now', ${interval})
     GROUP BY model
     ORDER BY total_cost DESC
   `)
@@ -48,7 +50,7 @@ analyticsRouter.get('/costs', async (req, res) => {
       date(created_at) as date,
       SUM(cost_usd) as total_cost
     FROM usage_events
-    WHERE created_at >= datetime('now', '-${days} days')
+    WHERE created_at >= datetime('now', ${interval})
     GROUP BY date(created_at)
     ORDER BY date DESC
   `)
@@ -59,7 +61,7 @@ analyticsRouter.get('/costs', async (req, res) => {
       SUM(input_tokens + output_tokens) as total_tokens,
       COUNT(*) as total_requests
     FROM usage_events
-    WHERE created_at >= datetime('now', '-${days} days')
+    WHERE created_at >= datetime('now', ${interval})
   `) as [{ total_cost: number; total_tokens: number; total_requests: number }]
 
   ok(res, { byModel, byDay, totals, days })
@@ -68,13 +70,14 @@ analyticsRouter.get('/costs', async (req, res) => {
 // GET /api/analytics/runs — agent run stats
 analyticsRouter.get('/runs', async (req, res) => {
   const days = parseInt(req.query.days as string ?? '30', 10)
+  const interval = sql.raw(`'-${days} days'`)
 
   const byStatus = await db.all(sql`
     SELECT
       status,
       COUNT(*) as count
     FROM agent_runs
-    WHERE started_at >= datetime('now', '-${days} days')
+    WHERE started_at >= datetime('now', ${interval})
     GROUP BY status
   `)
 
@@ -88,7 +91,7 @@ analyticsRouter.get('/runs', async (req, res) => {
       SUM(r.cost_usd) as total_cost
     FROM agent_runs r
     LEFT JOIN agents a ON r.agent_id = a.id
-    WHERE r.started_at >= datetime('now', '-${days} days')
+    WHERE r.started_at >= datetime('now', ${interval})
     GROUP BY r.agent_id
     ORDER BY run_count DESC
     LIMIT 10

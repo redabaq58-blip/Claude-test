@@ -48,9 +48,8 @@ COPY --from=builder /app/packages/mcp/dist ./packages/mcp/dist
 COPY --from=builder /app/packages/api/dist ./packages/api/dist
 COPY --from=builder /app/apps/web/dist ./apps/web/dist
 
-# Persistent data directory
+# Persistent data directory (use Railway Volumes for persistence)
 RUN mkdir -p /app/data
-VOLUME ["/app/data"]
 
 ENV NODE_ENV=production
 ENV PORT=3000

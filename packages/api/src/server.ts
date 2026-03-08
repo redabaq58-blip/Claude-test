@@ -76,9 +76,24 @@ if (serveWeb) {
 app.use(notFound)
 app.use(errorHandler)
 
+// ─── Global error guards (prevent Railway crash-loops) ────────────────────────
+
+process.on('uncaughtException', (err) => {
+  console.error('[uncaughtException]', err)
+})
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[unhandledRejection]', reason)
+})
+
 // ─── Start ────────────────────────────────────────────────────────────────────
 
-initDb()
+try {
+  initDb()
+} catch (err) {
+  console.error('[DB] Failed to initialise database — continuing without persistence:', err)
+}
+
 app.listen(PORT, () => {
   console.log(`
 ╔═══════════════════════════════════════╗

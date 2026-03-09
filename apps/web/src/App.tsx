@@ -9,12 +9,14 @@ import MCPHub from './pages/MCPHub'
 import Analytics from './pages/Analytics'
 import Templates from './pages/Templates'
 import History from './pages/History'
+import Prompts from './pages/Prompts'
 import CommandPalette from './components/CommandPalette'
 
 const NAV = [
   { to: '/', label: 'Dashboard', icon: '⬡' },
   { to: '/chat', label: 'Chat', icon: '◉' },
   { to: '/agents', label: 'Agent Studio', icon: '◈' },
+  { to: '/prompts', label: 'Prompt Library', icon: '◧' },
   { to: '/compare', label: 'Compare', icon: '⚖' },
   { to: '/templates', label: 'Templates', icon: '⬛' },
   { to: '/workflows', label: 'Workflows', icon: '⟳' },
@@ -97,6 +99,7 @@ function AppInner() {
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/templates" element={<Templates />} />
           <Route path="/history" element={<History />} />
+          <Route path="/prompts" element={<Prompts />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

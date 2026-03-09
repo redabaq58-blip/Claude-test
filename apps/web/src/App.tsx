@@ -10,6 +10,7 @@ import Analytics from './pages/Analytics'
 import Templates from './pages/Templates'
 import History from './pages/History'
 import Prompts from './pages/Prompts'
+import Occupations from './pages/Occupations'
 import CommandPalette from './components/CommandPalette'
 
 const NAV = [
@@ -23,6 +24,7 @@ const NAV = [
   { to: '/mcp', label: 'MCP Hub', icon: '⬢' },
   { to: '/analytics', label: 'Analytics', icon: '◎' },
   { to: '/history', label: 'History', icon: '◷' },
+  { to: '/occupations', label: 'Occupations', icon: '◑' },
 ]
 
 function AppInner() {
@@ -100,6 +102,7 @@ function AppInner() {
           <Route path="/templates" element={<Templates />} />
           <Route path="/history" element={<History />} />
           <Route path="/prompts" element={<Prompts />} />
+          <Route path="/occupations" element={<Occupations />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

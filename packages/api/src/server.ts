@@ -16,6 +16,7 @@ import { templatesRouter } from './routes/templates.js'
 import { promptsRouter } from './routes/prompts.js'
 import { conversationsRouter } from './routes/conversations.js'
 import { compareRouter } from './routes/compare.js'
+import { occupationsRouter } from './routes/occupations.js'
 import { errorHandler, notFound } from './middleware/response.js'
 
 const app = express()
@@ -57,6 +58,7 @@ app.use('/api/templates', templatesRouter)
 app.use('/api/prompts', promptsRouter)
 app.use('/api/conversations', conversationsRouter)
 app.use('/api/compare', compareRouter)
+app.use('/api/occupations', occupationsRouter)
 
 // ─── Serve web dashboard (production) ────────────────────────────────────────
 // When deployed on Railway, the built React app is served from here.

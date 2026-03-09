@@ -298,6 +298,25 @@ export const compareApi = {
     }),
 }
 
+// ─── Occupations API ──────────────────────────────────────────────────────────
+
+export interface Occupation {
+  id: string
+  title: string
+  description: string
+  icon: string
+  category: 'engineering' | 'product' | 'design' | 'data' | 'business' | 'creative' | 'science' | 'other'
+  expertiseAreas: string[]
+  communicationStyle: string
+  systemPromptSuffix: string
+}
+
+export const occupationsApi = {
+  list: () => request<Occupation[]>('/occupations'),
+  get: (id: string) => request<Occupation>(`/occupations/${id}`),
+  byCategory: (category: string) => request<Occupation[]>(`/occupations/category/${category}`),
+}
+
 // ─── Prompt enhance API ───────────────────────────────────────────────────────
 
 export interface EnhanceResult {

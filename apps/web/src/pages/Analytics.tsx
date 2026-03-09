@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
-  BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
+  BarChart, Bar, LineChart, Line, AreaChart, Area,
+  XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend,
 } from 'recharts'
 import { analyticsApi } from '../api'
@@ -12,6 +13,12 @@ const MODEL_COLORS: Record<string, string> = {
   'claude-haiku-4-5-20251001': '#fbbf24',
 }
 
+const MODEL_SHORT: Record<string, string> = {
+  'claude-opus-4-6': 'Opus',
+  'claude-sonnet-4-6': 'Sonnet',
+  'claude-haiku-4-5-20251001': 'Haiku',
+}
+
 const STATUS_COLORS: Record<string, string> = {
   completed: '#34d399',
   failed: '#f87171',
@@ -19,21 +26,47 @@ const STATUS_COLORS: Record<string, string> = {
   pending: '#9ca3af',
 }
 
+// ─── Token usage types ────────────────────────────────────────────────────────
+
+interface UsageRow {
+  date: string
+  model: string
+  total_tokens: number
+  request_count: number
+}
+
+// Pivot rows into per-day stacked chart data
+function pivotTokensByDay(rows: UsageRow[]) {
+  const byDate: Record<string, Record<string, number>> = {}
+  for (const row of rows) {
+    if (!byDate[row.date]) byDate[row.date] = {}
+    byDate[row.date][row.model] = (byDate[row.date][row.model] ?? 0) + row.total_tokens
+  }
+  return Object.entries(byDate)
+    .map(([date, models]) => ({ date, ...models }))
+    .sort((a, b) => a.date.localeCompare(b.date))
+}
+
+const MODELS_ORDERED = ['claude-opus-4-6', 'claude-sonnet-4-6', 'claude-haiku-4-5-20251001']
+
 export default function Analytics() {
   const [costs, setCosts] = useState<CostAnalytics | null>(null)
   const [runs, setRuns] = useState<RunAnalytics | null>(null)
+  const [usage, setUsage] = useState<UsageRow[]>([])
   const [loading, setLoading] = useState(true)
   const [days, setDays] = useState(30)
 
   useEffect(() => {
     setLoading(true)
-    Promise.all([analyticsApi.costs(days), analyticsApi.runs(days)])
-      .then(([c, r]) => { setCosts(c); setRuns(r) })
+    Promise.all([analyticsApi.costs(days), analyticsApi.runs(days), analyticsApi.usage(days)])
+      .then(([c, r, u]) => { setCosts(c); setRuns(r); setUsage(u) })
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [days])
 
   const totalRuns = runs?.byStatus.reduce((s, r) => s + r.count, 0) ?? 0
+  const tokensByDay = pivotTokensByDay(usage)
+  const modelsPresent = MODELS_ORDERED.filter((m) => usage.some((u) => u.model === m))
 
   return (
     <div className="p-8">
@@ -76,6 +109,70 @@ export default function Analytics() {
           </div>
           <div className="text-gray-500 text-xs mt-1">Agent runs</div>
         </div>
+      </div>
+
+      {/* Token usage over time — full width */}
+      <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-semibold text-white">Token Usage Over Time</h2>
+          {modelsPresent.length > 0 && (
+            <div className="flex items-center gap-3">
+              {modelsPresent.map((m) => (
+                <div key={m} className="flex items-center gap-1.5 text-xs text-gray-400">
+                  <div className="w-2.5 h-2.5 rounded-sm" style={{ background: MODEL_COLORS[m] }} />
+                  {MODEL_SHORT[m]}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        {loading || tokensByDay.length === 0 ? (
+          <div className="h-48 flex items-center justify-center text-gray-600 text-sm">
+            {loading ? 'Loading…' : 'No token data yet — run an agent to see usage here'}
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height={220}>
+            <AreaChart data={tokensByDay}>
+              <defs>
+                {modelsPresent.map((m) => (
+                  <linearGradient key={m} id={`grad-${m}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={MODEL_COLORS[m]} stopOpacity={0.3} />
+                    <stop offset="95%" stopColor={MODEL_COLORS[m]} stopOpacity={0.02} />
+                  </linearGradient>
+                ))}
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+              <XAxis
+                dataKey="date"
+                tick={{ fill: '#6b7280', fontSize: 11 }}
+                tickFormatter={(v: string) => v.slice(5)}
+              />
+              <YAxis
+                tick={{ fill: '#6b7280', fontSize: 11 }}
+                tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)}
+              />
+              <Tooltip
+                contentStyle={{ background: '#111827', border: '1px solid #374151', borderRadius: 8 }}
+                labelStyle={{ color: '#9ca3af' }}
+                formatter={(v: number, name: string) => [
+                  v.toLocaleString(),
+                  MODEL_SHORT[name] ?? name,
+                ]}
+              />
+              {modelsPresent.map((m) => (
+                <Area
+                  key={m}
+                  type="monotone"
+                  dataKey={m}
+                  stackId="tokens"
+                  stroke={MODEL_COLORS[m]}
+                  fill={`url(#grad-${m})`}
+                  strokeWidth={2}
+                />
+              ))}
+            </AreaChart>
+          </ResponsiveContainer>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-6">

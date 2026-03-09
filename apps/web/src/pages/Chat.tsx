@@ -24,6 +24,7 @@ function formatCost(usd: number) {
 export default function Chat() {
   const [searchParams] = useSearchParams()
   const initAgentId = searchParams.get('agentId')
+  const initPrompt = searchParams.get('prompt')
 
   const [agents, setAgents] = useState<Agent[]>([])
   const [conversations, setConversations] = useState<Conversation[]>([])
@@ -47,7 +48,9 @@ export default function Chat() {
       if (agent) setSelectedAgent(agent)
     }).catch(() => {})
     conversationsApi.list().then(setConversations).catch(() => {})
-  }, [initAgentId])
+    // Pre-fill input from ?prompt= param (e.g. from Prompt Library)
+    if (initPrompt) setInput(decodeURIComponent(initPrompt))
+  }, [initAgentId, initPrompt])
 
   const scrollBottom = useCallback(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })

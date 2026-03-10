@@ -17,6 +17,8 @@ import { promptsRouter } from './routes/prompts.js'
 import { conversationsRouter } from './routes/conversations.js'
 import { compareRouter } from './routes/compare.js'
 import { occupationsRouter } from './routes/occupations.js'
+import { workforceRouter } from './routes/workforce.js'
+import { automationRouter } from './routes/automation.js'
 import { errorHandler, notFound } from './middleware/response.js'
 
 const app = express()
@@ -59,6 +61,8 @@ app.use('/api/prompts', promptsRouter)
 app.use('/api/conversations', conversationsRouter)
 app.use('/api/compare', compareRouter)
 app.use('/api/occupations', occupationsRouter)
+app.use('/api/workforce', workforceRouter)
+app.use('/api/automation', automationRouter)
 
 // ─── Serve web dashboard (production) ────────────────────────────────────────
 // When deployed on Railway, the built React app is served from here.
@@ -114,6 +118,10 @@ app.listen(PORT, () => {
     GET  /api/prompts             — Prompt library
     GET  /api/runs                — All run history
     GET  /api/analytics/costs     — Cost analytics
+    GET  /api/workforce/occupations — Workforce intelligence
+    GET  /api/workforce/insights    — Automation insights dashboard
+    POST /api/automation/analyze    — Automation risk analysis
+    GET  /api/automation/leaderboard — Risk leaderboard
   `)
 })
 

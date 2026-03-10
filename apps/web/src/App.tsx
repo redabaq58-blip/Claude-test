@@ -11,6 +11,8 @@ import Templates from './pages/Templates'
 import History from './pages/History'
 import Prompts from './pages/Prompts'
 import Occupations from './pages/Occupations'
+import WorkforceIntelligence from './pages/WorkforceIntelligence'
+import AutomationAnalyzer from './pages/AutomationAnalyzer'
 import CommandPalette from './components/CommandPalette'
 
 const NAV = [
@@ -24,7 +26,8 @@ const NAV = [
   { to: '/mcp', label: 'MCP Hub', icon: '⬢' },
   { to: '/analytics', label: 'Analytics', icon: '◎' },
   { to: '/history', label: 'History', icon: '◷' },
-  { to: '/occupations', label: 'Occupations', icon: '◑' },
+  { to: '/workforce', label: 'Workforce Intel', icon: '◑' },
+  { to: '/automation', label: 'Automation AI', icon: '⚙' },
 ]
 
 function AppInner() {
@@ -103,6 +106,8 @@ function AppInner() {
           <Route path="/history" element={<History />} />
           <Route path="/prompts" element={<Prompts />} />
           <Route path="/occupations" element={<Occupations />} />
+          <Route path="/workforce" element={<WorkforceIntelligence />} />
+          <Route path="/automation" element={<AutomationAnalyzer />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

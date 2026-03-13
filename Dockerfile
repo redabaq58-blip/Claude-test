@@ -14,6 +14,7 @@ COPY packages/core/package*.json ./packages/core/
 COPY packages/agents/package*.json ./packages/agents/
 COPY packages/mcp/package*.json ./packages/mcp/
 COPY packages/api/package*.json ./packages/api/
+COPY packages/cli/package*.json ./packages/cli/
 COPY apps/web/package*.json ./apps/web/
 
 RUN npm install
@@ -37,6 +38,7 @@ COPY packages/core/package*.json ./packages/core/
 COPY packages/agents/package*.json ./packages/agents/
 COPY packages/mcp/package*.json ./packages/mcp/
 COPY packages/api/package*.json ./packages/api/
+COPY packages/cli/package*.json ./packages/cli/
 COPY apps/web/package*.json ./apps/web/
 
 RUN npm install --omit=dev

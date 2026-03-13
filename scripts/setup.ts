@@ -3,13 +3,14 @@
  * ClaudeForge Setup Script
  * One-command platform bootstrap: checks environment, seeds DB, registers defaults.
  *
- * Usage:  npx tsx scripts/setup.ts
+ * Usage:  npm run setup
+ *    or:  npx tsx scripts/setup.ts
  */
 
 import { execSync } from 'child_process'
 import * as fs from 'fs'
 import * as path from 'path'
-import * as https from 'https'
+import * as http from 'http'
 
 // ─── Colors ──────────────────────────────────────────────────────────────────
 
@@ -41,20 +42,20 @@ function run(cmd: string, cwd?: string): string {
   return execSync(cmd, { cwd: cwd ?? ROOT, stdio: 'pipe', encoding: 'utf8' }).trim()
 }
 
-function apiPost(path: string, body: unknown): Promise<{ data: unknown; error?: string }> {
+function apiPost(apiPath: string, body: unknown): Promise<{ data: unknown; error?: string }> {
   return new Promise((resolve, reject) => {
     const payload = JSON.stringify(body)
-    const options = {
+    const options: http.RequestOptions = {
       hostname: 'localhost',
       port: Number(process.env.PORT ?? 3000),
-      path,
+      path: apiPath,
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Content-Length': Buffer.byteLength(payload),
       },
     }
-    const req = https.request({ ...options, protocol: 'http:' }, (res) => {
+    const req = http.request(options, (res) => {
       let data = ''
       res.on('data', (chunk) => { data += chunk })
       res.on('end', () => {
@@ -68,19 +69,17 @@ function apiPost(path: string, body: unknown): Promise<{ data: unknown; error?: 
   })
 }
 
-function apiGet(path: string): Promise<{ data: unknown; error?: string }> {
+function apiGet(apiPath: string): Promise<{ data: unknown; error?: string }> {
   return new Promise((resolve, reject) => {
-    const options = {
+    const options: http.RequestOptions = {
       hostname: 'localhost',
       port: Number(process.env.PORT ?? 3000),
-      path,
+      path: apiPath,
       method: 'GET',
     }
-    // Use http not https
-    const http = require('http')
-    const req = http.request(options, (res: any) => {
+    const req = http.request(options, (res) => {
       let data = ''
-      res.on('data', (chunk: any) => { data += chunk })
+      res.on('data', (chunk) => { data += chunk })
       res.on('end', () => {
         try { resolve(JSON.parse(data)) }
         catch { reject(new Error(`Invalid JSON: ${data.slice(0, 100)}`)) }
@@ -93,7 +92,7 @@ function apiGet(path: string): Promise<{ data: unknown; error?: string }> {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
-const ROOT = path.resolve(__dirname, '..')
+const ROOT = path.resolve(path.dirname(new URL('file://' + __filename).pathname), '..')
 
 async function main() {
   console.clear()
@@ -135,9 +134,10 @@ async function main() {
     }
   }
 
-  if (!process.env.ANTHROPIC_API_KEY) {
+  if (!process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY.includes('sk-ant-...')) {
     err('ANTHROPIC_API_KEY is not set')
     info('Add it to your .env file:  ANTHROPIC_API_KEY=sk-ant-...')
+    info('Get your key at: https://console.anthropic.com')
     process.exit(1)
   }
 
@@ -149,8 +149,8 @@ async function main() {
   info('Sending a quick ping to claude-haiku-4-5-20251001…')
 
   try {
-    const Anthropic = require('@anthropic-ai/sdk')
-    const client = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY })
+    const { default: Anthropic } = await import('@anthropic-ai/sdk')
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
     const msg = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 16,
@@ -175,20 +175,13 @@ async function main() {
   }
 
   // ── Step 4: Build packages ─────────────────────────────────────────────────
-  header(`[${step++}/${total}] Building TypeScript packages`)
-  const packages = ['packages/core', 'packages/agents', 'packages/mcp', 'packages/api', 'packages/cli']
-  for (const pkg of packages) {
-    const pkgPath = path.join(ROOT, pkg)
-    if (!fs.existsSync(pkgPath)) {
-      warn(`${pkg} not found — skipping`)
-      continue
-    }
-    try {
-      run('npm run build --if-present', pkgPath)
-      ok(`Built ${pkg}`)
-    } catch {
-      warn(`Build skipped for ${pkg} (may not have a build script)`)
-    }
+  header(`[${step++}/${total}] Building all packages`)
+  try {
+    info('Building TypeScript + React dashboard…')
+    run('npm run build --silent')
+    ok('All packages built')
+  } catch {
+    warn('Some packages may have failed to build — check output above')
   }
 
   // ── Step 5: Seed database ───────────────────────────────────────────────────
@@ -201,7 +194,7 @@ async function main() {
     apiRunning = true
     ok('API server is running')
   } catch {
-    warn('API server not running — seeding via direct DB write')
+    warn('API server not running — seeding will happen automatically on first start')
   }
 
   const dataDir = path.join(ROOT, 'data')
@@ -229,7 +222,7 @@ async function main() {
         name: 'Quick Assistant',
         description: 'Fast, concise answers for everyday questions',
         model: 'claude-haiku-4-5-20251001',
-        systemPrompt: 'You are a fast, efficient assistant. Give concise, direct answers. Use bullet points for lists. Avoid unnecessary preamble. If you don\'t know something, say so clearly.',
+        systemPrompt: "You are a fast, efficient assistant. Give concise, direct answers. Use bullet points for lists. Avoid unnecessary preamble. If you don't know something, say so clearly.",
       },
     ]
 
@@ -245,7 +238,7 @@ async function main() {
     }
     if (seeded > 0) ok(`${seeded} starter agents created`)
   } else {
-    ok('Database will be auto-seeded when API server starts')
+    ok('Database directory ready — starter agents will be available after first start')
   }
 
   // ── Step 6: Register MCP servers ───────────────────────────────────────────
@@ -275,16 +268,12 @@ async function main() {
 
   console.log(`\n${c.bold}${c.green}  ClaudeForge is ready! 🚀${c.reset}\n`)
   console.log(`${c.bold}  Start the platform:${c.reset}`)
-  console.log(`${c.cyan}    npm run dev${c.reset}           ${c.dim}# Start everything (API + Web)${c.reset}`)
-  console.log(`${c.cyan}    npm run start:api${c.reset}     ${c.dim}# API only  → http://localhost:3000${c.reset}`)
-  console.log(`${c.cyan}    npm run start:web${c.reset}     ${c.dim}# Web only  → http://localhost:5173${c.reset}`)
-  console.log(`\n${c.bold}  Try the CLI:${c.reset}`)
-  console.log(`${c.cyan}    npx claude-forge status${c.reset}          ${c.dim}# Check API connection${c.reset}`)
-  console.log(`${c.cyan}    npx claude-forge models${c.reset}           ${c.dim}# List available models${c.reset}`)
-  console.log(`${c.cyan}    npx claude-forge agent ask "Hello"${c.reset} ${c.dim}# Quick one-shot${c.reset}`)
-  console.log(`\n${c.bold}  Run examples:${c.reset}`)
-  console.log(`${c.cyan}    cd examples/simple-agent && npx tsx index.ts${c.reset}`)
-  console.log(`${c.cyan}    cd examples/multi-agent-research && npx tsx index.ts${c.reset}`)
+  console.log(`${c.cyan}    npm start${c.reset}            ${c.dim}# Start everything → http://localhost:3000${c.reset}`)
+  console.log(`${c.cyan}    npm run dev${c.reset}           ${c.dim}# Dev mode (API + Web hot-reload)${c.reset}`)
+  console.log(`\n${c.bold}  Or use the shell script:${c.reset}`)
+  console.log(`${c.cyan}    ./start.sh${c.reset}            ${c.dim}# One-click start${c.reset}`)
+  console.log(`\n${c.bold}  Or run with Docker:${c.reset}`)
+  console.log(`${c.cyan}    docker compose up${c.reset}     ${c.dim}# Runs in a container${c.reset}`)
   console.log(`\n${c.dim}  Docs: README.md  |  Config: .env  |  DB: data/claude-forge.db${c.reset}`)
   divider()
   console.log()

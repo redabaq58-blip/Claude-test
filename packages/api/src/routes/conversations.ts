@@ -3,8 +3,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { eq, desc } from 'drizzle-orm'
 import { db, schema } from '../db/index.js'
 import { ok, fail } from '../middleware/response.js'
-import { ClaudeClient } from '@claudeforge/core'
-import { resolveModel } from '@claudeforge/core'
+import { ClaudeClient, resolveModel, calculateCost } from '@claudeforge/core'
 
 export const conversationsRouter = Router()
 
@@ -98,7 +97,8 @@ conversationsRouter.post('/:id/message', async (req, res) => {
     const apiMessages = messages.map((m) => ({ role: m.role, content: m.content }))
 
     let fullText = ''
-    let usage = { inputTokens: 0, outputTokens: 0, costUsd: 0, model }
+    // Build context string for token estimation (system + all messages)
+    const contextStr = (agentRow.systemPrompt ?? '') + apiMessages.map((m) => m.content).join('')
 
     for await (const chunk of client.stream(apiMessages, {
       model,
@@ -110,6 +110,12 @@ conversationsRouter.post('/:id/message', async (req, res) => {
         send({ type: 'text', text: chunk.text })
       }
     }
+
+    // Estimate token counts (streaming API doesn't return exact usage)
+    const inputTokens = Math.ceil(contextStr.length / 4)
+    const outputTokens = Math.ceil(fullText.length / 4)
+    const costUsd = calculateCost(model, inputTokens, outputTokens)
+    const usage = { inputTokens, outputTokens, costUsd, model }
 
     // Build assistant message
     const assistantMsg: Message = {

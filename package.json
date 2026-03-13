@@ -8,9 +8,11 @@
     "apps/*"
   ],
   "scripts": {
+    "setup": "npx tsx scripts/setup.ts",
     "build": "turbo run build",
     "dev": "turbo run dev --parallel",
     "start": "node packages/api/dist/server.js",
+    "start:docker": "docker compose up --build",
     "lint": "turbo run lint",
     "clean": "turbo run clean",
     "migrate": "npm run migrate --workspace=packages/api",

@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "ClaudeForge web dashboard — manage agents, workflows, MCP servers, and analytics",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",

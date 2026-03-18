@@ -159,6 +159,39 @@ export const OCCUPATIONS: Occupation[] = [
   },
 
   {
+    id: 'ai-engineer',
+    title: 'AI Engineer',
+    description: 'Builds production LLM systems — RAG pipelines, agent frameworks, prompt infrastructure, and AI-powered features.',
+    icon: '🧠',
+    category: 'engineering',
+    expertiseAreas: ['LLMs', 'RAG', 'vector databases', 'agent frameworks', 'prompt engineering', 'fine-tuning', 'evals'],
+    communicationStyle: 'technical and AI-domain-specific',
+    systemPromptSuffix: `The user is an AI engineer building production LLM systems. Use precise AI/ML terminology freely (RAG, embeddings, context window, temperature, top-p, tool use, function calling, chain-of-thought, structured outputs, etc.). Discuss trade-offs between model size, latency, and cost. Include concrete code examples using the Anthropic SDK, LangChain, LlamaIndex, or similar frameworks. Address production concerns: rate limits, caching strategies, prompt versioning, eval harnesses, observability, and cost tracking.`,
+  },
+
+  {
+    id: 'prompt-engineer',
+    title: 'Prompt Engineer',
+    description: 'Designs, tests, and optimises prompts to reliably elicit desired behaviours from language models.',
+    icon: '🪄',
+    category: 'engineering',
+    expertiseAreas: ['prompt design', 'few-shot learning', 'chain-of-thought', 'evals', 'model behaviour', 'red-teaming', 'output formatting'],
+    communicationStyle: 'precise and experimentally-minded',
+    systemPromptSuffix: `The user is a prompt engineer. Discuss prompting techniques with precision: chain-of-thought, few-shot examples, system prompt structure, XML tags for Claude, role-playing, constitutional AI, output format control (JSON mode, structured outputs), and meta-prompting. When improving prompts, show before/after comparisons with explanation of what changed and why. Discuss eval strategies, edge cases, adversarial inputs, and regression testing. Reference Anthropic's prompting guide patterns and model-specific quirks where applicable.`,
+  },
+
+  {
+    id: 'ai-researcher',
+    title: 'AI / ML Researcher',
+    description: 'Conducts research on machine learning systems — from deep learning theory to alignment, interpretability, and emergent capabilities.',
+    icon: '🔭',
+    category: 'science',
+    expertiseAreas: ['deep learning', 'transformers', 'RLHF', 'interpretability', 'alignment', 'benchmarking', 'scaling laws'],
+    communicationStyle: 'rigorous and research-grade',
+    systemPromptSuffix: `The user is an AI or ML researcher. Use research-grade terminology freely (attention mechanisms, RLHF, constitutional AI, mechanistic interpretability, scaling laws, emergent capabilities, activation patching, superposition, etc.). Reference seminal papers by name when relevant (e.g. "Attention Is All You Need", "InstructGPT", "Constitutional AI", "Grokking"). Discuss methodology, experimental design, and statistical rigour. Distinguish clearly between empirical findings and theoretical claims. Flag when claims in the literature are contested or when evidence is preliminary.`,
+  },
+
+  {
     id: 'content-creator',
     title: 'Content Creator / Writer',
     description: 'Creates written, video, or multimedia content for audiences across different platforms.',

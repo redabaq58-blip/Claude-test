@@ -574,6 +574,13 @@ export default function ForgeStudio() {
                 onDrop={handleSidebarDrop}
                 onClick={() => { if (connecting) { setConnecting(null); setMousePos(null) } else setSelectedNode(null) }}
               >
+                {/* Arrow marker — must be defined before edges that use it */}
+                <defs>
+                  <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                    <polygon points="0 0, 8 3, 0 6" fill="#4b5563" />
+                  </marker>
+                </defs>
+
                 {/* Edges */}
                 {edges.map(edge => {
                   const src = nodes.find(n => n.id === edge.source)
@@ -601,13 +608,6 @@ export default function ForgeStudio() {
                     </g>
                   )
                 })}
-
-                {/* Arrow marker */}
-                <defs>
-                  <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
-                    <polygon points="0 0, 8 3, 0 6" fill="#4b5563" />
-                  </marker>
-                </defs>
 
                 {/* Temp connection line while connecting */}
                 {connecting && mousePos && (() => {

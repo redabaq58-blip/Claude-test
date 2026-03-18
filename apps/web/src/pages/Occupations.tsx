@@ -24,15 +24,37 @@ const CATEGORY_COLORS: Record<string, string> = {
   other: 'bg-gray-800 text-gray-400 border-gray-700',
 }
 
+const ACTIVE_OCCUPATION_KEY = 'claudeforge:activeOccupation'
+
 export default function Occupations() {
   const [occupations, setOccupations] = useState<Occupation[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<string>('all')
-  const [selected, setSelected] = useState<Occupation | null>(null)
+  const [preview, setPreview] = useState<Occupation | null>(null)
+  const [activeOccupation, setActiveOccupation] = useState<Occupation | null>(null)
+  const [applied, setApplied] = useState(false)
 
   useEffect(() => {
     occupationsApi.list().then(setOccupations).finally(() => setLoading(false))
+    // Load persisted active occupation from localStorage
+    const saved = localStorage.getItem(ACTIVE_OCCUPATION_KEY)
+    if (saved) {
+      try { setActiveOccupation(JSON.parse(saved)) } catch { /* ignore */ }
+    }
   }, [])
+
+  const applyOccupation = (occ: Occupation) => {
+    setActiveOccupation(occ)
+    localStorage.setItem(ACTIVE_OCCUPATION_KEY, JSON.stringify(occ))
+    setApplied(true)
+    setTimeout(() => setApplied(false), 2500)
+    setPreview(null)
+  }
+
+  const clearOccupation = () => {
+    setActiveOccupation(null)
+    localStorage.removeItem(ACTIVE_OCCUPATION_KEY)
+  }
 
   const categories = ['all', ...Object.keys(CATEGORY_LABELS)]
   const filtered =
@@ -40,13 +62,31 @@ export default function Occupations() {
 
   return (
     <div className="p-8">
-      <div className="mb-8">
+      <div className="mb-6">
         <h1 className="text-2xl font-bold text-white mb-1">Occupations</h1>
         <p className="text-gray-500 text-sm">
-          Select your professional role so Claude agents adapt their language, depth, and style to match
-          your background.
+          Set your professional role so Claude agents adapt their language, depth, and style to match your background.
         </p>
       </div>
+
+      {/* Active occupation banner */}
+      {activeOccupation && (
+        <div className="mb-6 flex items-center gap-3 px-4 py-3 bg-brand-950 border border-brand-700 rounded-xl">
+          <span className="text-2xl">{activeOccupation.icon}</span>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-brand-200">Active: {activeOccupation.title}</p>
+            <p className="text-xs text-brand-400 mt-0.5">Agents adapt their language and depth to match your background.</p>
+          </div>
+          {applied && (
+            <span className="text-xs text-green-400 font-medium animate-pulse">✓ Applied!</span>
+          )}
+          <button
+            onClick={clearOccupation}
+            className="text-xs text-gray-500 hover:text-gray-300 border border-gray-700 rounded px-2 py-1">
+            Clear
+          </button>
+        </div>
+      )}
 
       {/* Category filter */}
       <div className="flex gap-2 mb-8 flex-wrap">
@@ -70,15 +110,18 @@ export default function Occupations() {
       ) : (
         <div className="grid grid-cols-2 gap-4 xl:grid-cols-3">
           {filtered.map((occ) => {
-            const isSelected = selected?.id === occ.id
+            const isActive = activeOccupation?.id === occ.id
+            const isPreviewing = preview?.id === occ.id
             return (
               <div
                 key={occ.id}
-                onClick={() => setSelected(isSelected ? null : occ)}
+                onClick={() => setPreview(isPreviewing ? null : occ)}
                 className={`bg-gray-900 border rounded-xl p-5 flex flex-col cursor-pointer transition-all ${
-                  isSelected
+                  isActive
                     ? 'border-brand-500 ring-1 ring-brand-500'
-                    : 'border-gray-800 hover:border-gray-700'
+                    : isPreviewing
+                      ? 'border-gray-600'
+                      : 'border-gray-800 hover:border-gray-700'
                 }`}
               >
                 {/* Header */}
@@ -94,8 +137,8 @@ export default function Occupations() {
                       {CATEGORY_LABELS[occ.category]}
                     </span>
                   </div>
-                  {isSelected && (
-                    <div className="text-brand-400 text-lg">✓</div>
+                  {isActive && (
+                    <div className="text-xs text-brand-400 font-medium">✓ Active</div>
                   )}
                 </div>
 
@@ -118,7 +161,20 @@ export default function Occupations() {
                 </div>
 
                 {/* Communication style */}
-                <p className="text-gray-600 text-xs italic">Style: {occ.communicationStyle}</p>
+                <p className="text-gray-600 text-xs italic mb-3">Style: {occ.communicationStyle}</p>
+
+                {/* Apply button */}
+                <button
+                  onClick={e => { e.stopPropagation(); applyOccupation(occ) }}
+                  className={`w-full text-xs py-2 rounded font-medium transition-colors ${
+                    isActive
+                      ? 'bg-brand-700 text-brand-200 cursor-default'
+                      : 'bg-gray-800 hover:bg-brand-600 text-gray-300 hover:text-white border border-gray-700 hover:border-brand-500'
+                  }`}
+                  disabled={isActive}
+                >
+                  {isActive ? '✓ Currently active' : 'Set as my occupation'}
+                </button>
               </div>
             )
           })}
@@ -129,27 +185,38 @@ export default function Occupations() {
         <div className="text-center py-16 text-gray-500">No roles in this category.</div>
       )}
 
-      {/* Selected occupation detail panel */}
-      {selected && (
-        <div className="fixed bottom-6 right-6 w-96 bg-gray-900 border border-brand-700 rounded-xl shadow-2xl p-5 z-40">
+      {/* Preview panel — shows system prompt suffix */}
+      {preview && (
+        <div className="fixed bottom-6 right-6 w-96 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl p-5 z-40">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <span className="text-2xl">{selected.icon}</span>
-              <span className="font-semibold text-white text-sm">{selected.title}</span>
+              <span className="text-2xl">{preview.icon}</span>
+              <span className="font-semibold text-white text-sm">{preview.title}</span>
             </div>
             <button
-              onClick={() => setSelected(null)}
+              onClick={() => setPreview(null)}
               className="text-gray-500 hover:text-gray-300 text-lg leading-none"
             >
               ×
             </button>
           </div>
           <p className="text-gray-500 text-xs mb-3">
-            Agents will append the following context to their system prompt:
+            System prompt appended to all agent calls when this occupation is active:
           </p>
-          <div className="bg-gray-800 rounded-lg px-3 py-2.5 text-gray-300 text-xs leading-relaxed font-mono whitespace-pre-wrap max-h-40 overflow-y-auto">
-            {selected.systemPromptSuffix}
+          <div className="bg-gray-800 rounded-lg px-3 py-2.5 text-gray-300 text-xs leading-relaxed font-mono whitespace-pre-wrap max-h-48 overflow-y-auto mb-3">
+            {preview.systemPromptSuffix}
           </div>
+          <button
+            onClick={() => applyOccupation(preview)}
+            className={`w-full text-sm py-2 rounded font-medium transition-colors ${
+              activeOccupation?.id === preview.id
+                ? 'bg-brand-700 text-brand-200 cursor-default'
+                : 'bg-brand-600 hover:bg-brand-500 text-white'
+            }`}
+            disabled={activeOccupation?.id === preview.id}
+          >
+            {activeOccupation?.id === preview.id ? '✓ Already active' : 'Set as my occupation'}
+          </button>
         </div>
       )}
     </div>

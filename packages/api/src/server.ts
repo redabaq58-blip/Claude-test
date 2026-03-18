@@ -112,16 +112,20 @@ process.on('unhandledRejection', (reason) => {
   console.error('[unhandledRejection]', reason)
 })
 
-// ─── Start ────────────────────────────────────────────────────────────────────
+// ─── Start (only when run directly, not in serverless) ───────────────────────
 
-try {
+// VERCEL / serverless: the module is imported, not executed directly.
+// When run directly (Railway, Docker, local), start the HTTP server.
+const isServerless = process.env.VERCEL === '1'
+
+if (!isServerless) {
   initDb()
-} catch (err) {
-  console.error('[DB] Failed to initialise database — continuing without persistence:', err)
-}
-
-app.listen(PORT, () => {
-  console.log(`
+    .catch((err) => {
+      console.error('[DB] Failed to initialise database — continuing without persistence:', err)
+    })
+    .then(() => {
+      app.listen(PORT, () => {
+        console.log(`
 ╔═══════════════════════════════════════╗
 ║         ClaudeForge API v1.0          ║
 ║   The Ultimate Claude Agent Platform  ║
@@ -130,15 +134,9 @@ app.listen(PORT, () => {
   Server:    http://localhost:${PORT}
   Health:    http://localhost:${PORT}/health
   Dashboard: ${serveWeb ? `http://localhost:${PORT}` : 'http://localhost:5173 (run npm run start:web)'}
-
-  Endpoints:
-    POST /api/agents/:id/run      — Run agent
-    POST /api/agents/:id/stream   — Stream response (SSE)
-    GET  /api/templates           — Agent templates
-    GET  /api/prompts             — Prompt library
-    GET  /api/runs                — All run history
-    GET  /api/analytics/costs     — Cost analytics
-  `)
-})
+        `)
+      })
+    })
+}
 
 export default app

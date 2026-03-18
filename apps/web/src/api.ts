@@ -8,6 +8,15 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     ...options,
   })
+  if (!res.ok) {
+    // Try to extract API error message, fall back to HTTP status
+    let msg = `HTTP ${res.status}: ${res.statusText}`
+    try {
+      const json = await res.json()
+      if (json?.error) msg = json.error
+    } catch { /* response was not JSON */ }
+    throw new Error(msg)
+  }
   const json = await res.json()
   if (json.error) throw new Error(json.error)
   return json.data as T
@@ -237,6 +246,11 @@ export const historyApi = {
     const res = await fetch(`${BASE}/runs?${qs.toString()}`, {
       headers: { 'Content-Type': 'application/json' },
     })
+    if (!res.ok) {
+      let msg = `HTTP ${res.status}: ${res.statusText}`
+      try { const j = await res.json(); if (j?.error) msg = j.error } catch { /* not JSON */ }
+      throw new Error(msg)
+    }
     const json = await res.json()
     if (json.error) throw new Error(json.error)
     return { data: json.data as RunRecord[], total: json.meta?.total ?? (json.data?.length ?? 0) }

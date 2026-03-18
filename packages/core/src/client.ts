@@ -214,10 +214,12 @@ export class ClaudeClient {
       options.taskConfig
     )
     const maxTokens = options.maxTokens ?? this.defaultMaxTokens
+    const temperature = options.temperature ?? this.defaultTemperature
 
     const stream = await this.client.messages.create({
       model,
       max_tokens: maxTokens,
+      temperature,
       system: options.systemPrompt,
       messages,
       stream: true,

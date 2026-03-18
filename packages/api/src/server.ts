@@ -18,7 +18,7 @@ import { promptsRouter } from './routes/prompts.js'
 import { conversationsRouter } from './routes/conversations.js'
 import { compareRouter } from './routes/compare.js'
 import { occupationsRouter } from './routes/occupations.js'
-import { errorHandler, notFound } from './middleware/response.js'
+import { errorHandler, notFound, ok } from './middleware/response.js'
 import { authMiddleware } from './middleware/auth.js'
 
 const app = express()
@@ -65,7 +65,7 @@ const claudeLimiter = rateLimit({
 // ─── Health check ─────────────────────────────────────────────────────────────
 
 app.get('/health', (_req, res) => {
-  res.json({
+  ok(res, {
     status: 'ok',
     platform: 'ClaudeForge',
     version: '1.0.0',

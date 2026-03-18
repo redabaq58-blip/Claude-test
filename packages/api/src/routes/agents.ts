@@ -209,10 +209,10 @@ agentsRouter.get('/:id/export', async (req, res) => {
       systemPrompt: agent.systemPrompt,
       maxTokens: agent.maxTokens,
       temperature: agent.temperature,
-      tools: JSON.parse(agent.tools ?? '[]'),
-      mcpServers: JSON.parse(agent.mcpServers ?? '[]'),
-      skillIds: JSON.parse(agent.skillIds ?? '[]'),
-      hookConfig: JSON.parse(agent.hookConfig ?? '{}'),
+        tools: (() => { try { return JSON.parse(agent.tools ?? '[]') } catch { return [] } })(),
+      mcpServers: (() => { try { return JSON.parse(agent.mcpServers ?? '[]') } catch { return [] } })(),
+      skillIds: (() => { try { return JSON.parse(agent.skillIds ?? '[]') } catch { return [] } })(),
+      hookConfig: (() => { try { return JSON.parse(agent.hookConfig ?? '{}') } catch { return {} } })(),
     },
   }
 

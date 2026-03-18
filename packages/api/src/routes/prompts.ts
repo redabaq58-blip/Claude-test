@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { readdirSync, readFileSync, existsSync } from 'fs'
-import { resolve, join, basename } from 'path'
+import { resolve, join, basename, sep } from 'path'
 import { ok, fail } from '../middleware/response.js'
 
 export const promptsRouter = Router()
@@ -108,7 +108,11 @@ promptsRouter.get('/category/:category', (req, res) => {
 
 // GET /api/prompts/:category/:id — get single prompt
 promptsRouter.get('/:category/:id', (req, res) => {
-  const promptPath = join(PROMPTS_DIR, req.params.category, `${req.params.id}.md`)
+  const promptPath = resolve(join(PROMPTS_DIR, req.params.category, `${req.params.id}.md`))
+  // Path traversal guard: ensure the resolved path stays within PROMPTS_DIR
+  if (!promptPath.startsWith(PROMPTS_DIR + sep) && promptPath !== PROMPTS_DIR) {
+    return fail(res, 'Prompt not found', 404)
+  }
   if (!existsSync(promptPath)) return fail(res, 'Prompt not found', 404)
 
   try {

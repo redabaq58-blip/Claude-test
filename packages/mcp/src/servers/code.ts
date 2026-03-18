@@ -112,7 +112,7 @@ export function createCodeTools(options: CodeServerOptions = {}): Tool[] {
           'rm -rf', 'rm -r', 'sudo', 'su -', 'chmod 777', 'chmod -R',
           'curl | sh', 'curl|sh', 'wget | sh', 'wget|sh', 'bash <(', 'sh <(',
           '> /dev/', '/etc/passwd', '/etc/shadow', 'mkfs', 'dd if=', 'fork bomb',
-          ':(){ :|:& };:', 'base64 -d', 'base64 --decode',
+          ':(){ :|:& };:', 'base64 -d |', 'base64 --decode |', 'base64 -d>', 'base64 --decode>',
           '/proc/', 'iptables', 'ufw', 'systemctl', 'shutdown', 'reboot', 'halt',
           'kill -9', 'pkill', 'killall', 'nc -', 'netcat', 'ncat',
         ]

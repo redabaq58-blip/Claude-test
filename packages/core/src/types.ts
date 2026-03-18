@@ -25,8 +25,9 @@ export interface TaskConfig {
 export type Message = Anthropic.MessageParam
 
 export interface StreamChunk {
-  type: 'text' | 'tool_use' | 'done'
+  type: 'text' | 'thinking' | 'tool_use' | 'done'
   text?: string
+  thinking?: string
   toolName?: string
   toolInput?: Record<string, unknown>
 }
@@ -59,6 +60,9 @@ export interface UsageStats {
   costUsd: number
   model: ClaudeModel
   durationMs: number
+  // Prompt caching stats (optional)
+  cacheReadTokens?: number
+  cacheCreationTokens?: number
 }
 
 // ─── Response Types ──────────────────────────────────────────────────────────
@@ -67,7 +71,74 @@ export interface ClaudeResponse {
   content: string
   usage: UsageStats
   stopReason: string | null
+  // Extended thinking content (optional)
+  thinkingContent?: string
 }
+
+// ─── Token Count Estimate ─────────────────────────────────────────────────────
+
+export interface TokenCountEstimate {
+  inputTokens: number
+  estimatedCostUsd: number
+  withinBudget: boolean
+}
+
+// ─── Batch Types ──────────────────────────────────────────────────────────────
+
+export interface BatchRequest {
+  customId: string
+  messages: Message[]
+  systemPrompt?: string
+  model?: ClaudeModel
+  maxTokens?: number
+}
+
+export interface BatchJobResponse {
+  batchId: string
+  status: string
+  inputCount: number
+  createdAt: string
+}
+
+export interface BatchJobStatus {
+  batchId: string
+  status: 'submitted' | 'processing' | 'ended' | 'cancelled' | 'errored'
+  requestCounts: {
+    processing: number
+    succeeded: number
+    errored: number
+    canceled: number
+    expired: number
+  }
+  endedAt?: string
+}
+
+export interface BatchResultItem {
+  customId: string
+  result: {
+    type: 'succeeded' | 'errored' | 'canceled' | 'expired'
+    message?: { content: Array<{ type: string; text?: string }>; usage?: { input_tokens: number; output_tokens: number } }
+    error?: { type: string; message: string }
+  }
+}
+
+// ─── Image / Multimodal Types ─────────────────────────────────────────────────
+
+export interface ImageContentBlock {
+  type: 'image'
+  source: {
+    type: 'base64'
+    media_type: 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp'
+    data: string
+  }
+}
+
+export interface TextContentBlock {
+  type: 'text'
+  text: string
+}
+
+export type ContentBlock = TextContentBlock | ImageContentBlock
 
 // ─── Error Types ─────────────────────────────────────────────────────────────
 

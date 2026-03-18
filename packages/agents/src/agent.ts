@@ -20,6 +20,10 @@ export interface AgentConfig {
   temperature?: number
   maxToolRounds?: number
   logUsage?: boolean
+  // Feature flags
+  cacheSystemPrompt?: boolean
+  thinkingEnabled?: boolean
+  thinkingBudget?: number
 }
 
 // ─── Agent Run Result ─────────────────────────────────────────────────────────
@@ -34,6 +38,7 @@ export interface AgentRunResult {
   error?: string
   startedAt: Date
   completedAt: Date
+  thinkingContent?: string
 }
 
 // ─── ClaudeAgent Base Class ───────────────────────────────────────────────────
@@ -51,6 +56,9 @@ export class ClaudeAgent {
   protected maxTokens: number
   protected temperature: number
   protected maxToolRounds: number
+  protected cacheSystemPrompt: boolean
+  protected thinkingEnabled: boolean
+  protected thinkingBudget: number
 
   constructor(config: AgentConfig) {
     this.name = config.name
@@ -61,6 +69,9 @@ export class ClaudeAgent {
     this.maxTokens = config.maxTokens ?? 8192
     this.temperature = config.temperature ?? 1.0
     this.maxToolRounds = config.maxToolRounds ?? 10
+    this.cacheSystemPrompt = config.cacheSystemPrompt ?? false
+    this.thinkingEnabled = config.thinkingEnabled ?? false
+    this.thinkingBudget = config.thinkingBudget ?? 8000
 
     this.client = new ClaudeClient({
       defaultModel: this.model,
@@ -148,6 +159,8 @@ export class ClaudeAgent {
         tools: this.tools,
         maxTokens: this.maxTokens,
         maxToolRounds: this.maxToolRounds,
+        cachingEnabled: this.cacheSystemPrompt,
+        ...(this.thinkingEnabled && { thinking: { type: 'enabled' as const, budget_tokens: this.thinkingBudget } }),
       })
     } catch (err) {
       const error = err instanceof Error ? err.message : String(err)
@@ -194,6 +207,7 @@ export class ClaudeAgent {
       success: true,
       startedAt,
       completedAt,
+      ...(response.thinkingContent && { thinkingContent: response.thinkingContent }),
     }
   }
 

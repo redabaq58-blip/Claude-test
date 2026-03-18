@@ -48,6 +48,9 @@ const DDL_STATEMENTS = [
     max_tokens INTEGER DEFAULT 8192,
     temperature REAL DEFAULT 1.0,
     is_active INTEGER DEFAULT 1,
+    cache_enabled INTEGER DEFAULT 0,
+    thinking_enabled INTEGER DEFAULT 0,
+    thinking_budget INTEGER DEFAULT 8000,
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now'))
   )`,
@@ -63,6 +66,9 @@ const DDL_STATEMENTS = [
     cost_usd REAL DEFAULT 0,
     duration_ms INTEGER DEFAULT 0,
     model TEXT DEFAULT '',
+    thinking_content TEXT,
+    cache_read_tokens INTEGER DEFAULT 0,
+    cache_creation_tokens INTEGER DEFAULT 0,
     started_at TEXT DEFAULT (datetime('now')),
     completed_at TEXT
   )`,
@@ -121,8 +127,67 @@ const DDL_STATEMENTS = [
     input_tokens INTEGER NOT NULL DEFAULT 0,
     output_tokens INTEGER NOT NULL DEFAULT 0,
     cost_usd REAL NOT NULL DEFAULT 0,
+    cache_read_tokens INTEGER DEFAULT 0,
+    cache_creation_tokens INTEGER DEFAULT 0,
     created_at TEXT DEFAULT (datetime('now'))
   )`,
+  `CREATE TABLE IF NOT EXISTS schedules (
+    id TEXT PRIMARY KEY,
+    workflow_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    type TEXT NOT NULL DEFAULT 'cron',
+    cron_expression TEXT,
+    webhook_secret TEXT,
+    is_active INTEGER DEFAULT 1,
+    last_run_at TEXT,
+    next_run_at TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  )`,
+  `CREATE TABLE IF NOT EXISTS batch_jobs (
+    id TEXT PRIMARY KEY,
+    agent_id TEXT,
+    anthropic_batch_id TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'submitted',
+    input_count INTEGER DEFAULT 0,
+    completed_count INTEGER DEFAULT 0,
+    cost_usd REAL DEFAULT 0,
+    saved_cost_usd REAL DEFAULT 0,
+    results_json TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    completed_at TEXT
+  )`,
+  `CREATE TABLE IF NOT EXISTS eval_suites (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT DEFAULT '',
+    agent_id TEXT,
+    cases TEXT NOT NULL DEFAULT '[]',
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  )`,
+  `CREATE TABLE IF NOT EXISTS eval_runs (
+    id TEXT PRIMARY KEY,
+    suite_id TEXT NOT NULL,
+    agent_id TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    average_score REAL,
+    case_results TEXT DEFAULT '[]',
+    used_batch INTEGER DEFAULT 0,
+    cost_usd REAL DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now')),
+    completed_at TEXT
+  )`,
+  // Migration: add new columns to existing tables (safe IF NOT EXISTS equivalent via ALTER TABLE)
+  // These run every startup but are safe because SQLite ignores duplicate columns
+  `ALTER TABLE agents ADD COLUMN cache_enabled INTEGER DEFAULT 0`,
+  `ALTER TABLE agents ADD COLUMN thinking_enabled INTEGER DEFAULT 0`,
+  `ALTER TABLE agents ADD COLUMN thinking_budget INTEGER DEFAULT 8000`,
+  `ALTER TABLE agent_runs ADD COLUMN thinking_content TEXT`,
+  `ALTER TABLE agent_runs ADD COLUMN cache_read_tokens INTEGER DEFAULT 0`,
+  `ALTER TABLE agent_runs ADD COLUMN cache_creation_tokens INTEGER DEFAULT 0`,
+  `ALTER TABLE usage_events ADD COLUMN cache_read_tokens INTEGER DEFAULT 0`,
+  `ALTER TABLE usage_events ADD COLUMN cache_creation_tokens INTEGER DEFAULT 0`,
   `CREATE INDEX IF NOT EXISTS idx_usage_events_created_at ON usage_events(created_at)`,
   `CREATE INDEX IF NOT EXISTS idx_usage_events_model ON usage_events(model)`,
   `CREATE INDEX IF NOT EXISTS idx_agent_runs_agent_id ON agent_runs(agent_id)`,
@@ -134,7 +199,15 @@ const DDL_STATEMENTS = [
 
 export async function initDb(): Promise<void> {
   for (const stmt of DDL_STATEMENTS) {
-    await client.execute(stmt)
+    try {
+      await client.execute(stmt)
+    } catch (err) {
+      // Ignore "duplicate column" errors from ALTER TABLE migrations
+      const msg = err instanceof Error ? err.message : String(err)
+      if (!msg.includes('duplicate column') && !msg.includes('already exists')) {
+        throw err
+      }
+    }
   }
 }
 

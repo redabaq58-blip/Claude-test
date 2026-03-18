@@ -11,6 +11,9 @@ import Templates from './pages/Templates'
 import History from './pages/History'
 import Prompts from './pages/Prompts'
 import Occupations from './pages/Occupations'
+import Schedules from './pages/Schedules'
+import BatchJobs from './pages/BatchJobs'
+import Evals from './pages/Evals'
 import CommandPalette from './components/CommandPalette'
 
 const NAV = [
@@ -21,8 +24,11 @@ const NAV = [
   { to: '/compare', label: 'Compare', icon: '⚖' },
   { to: '/templates', label: 'Templates', icon: '⬛' },
   { to: '/workflows', label: 'Workflows', icon: '⟳' },
+  { to: '/schedules', label: 'Schedules', icon: '⏰' },
   { to: '/mcp', label: 'MCP Hub', icon: '⬢' },
   { to: '/analytics', label: 'Analytics', icon: '◎' },
+  { to: '/batches', label: 'Batch Jobs', icon: '📦' },
+  { to: '/evals', label: 'Evaluations', icon: '🧪' },
   { to: '/history', label: 'History', icon: '◷' },
   { to: '/occupations', label: 'Occupations', icon: '◑' },
 ]
@@ -103,6 +109,9 @@ function AppInner() {
           <Route path="/history" element={<History />} />
           <Route path="/prompts" element={<Prompts />} />
           <Route path="/occupations" element={<Occupations />} />
+          <Route path="/schedules" element={<Schedules />} />
+          <Route path="/batches" element={<BatchJobs />} />
+          <Route path="/evals" element={<Evals />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

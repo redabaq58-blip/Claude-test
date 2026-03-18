@@ -65,16 +65,66 @@ interface RunOutput {
 // ─── Role Library data ────────────────────────────────────────────────────────
 
 const ROLES = [
-  { key: 'research-analyst',  role: 'Research Analyst',    icon: '🔍', color: '#3b82f6' },
-  { key: 'content-writer',    role: 'Content Writer',      icon: '✍️',  color: '#8b5cf6' },
-  { key: 'code-reviewer',     role: 'Code Reviewer',       icon: '🧑‍💻', color: '#10b981' },
-  { key: 'data-analyst',      role: 'Data Analyst',        icon: '📊', color: '#f59e0b' },
-  { key: 'qa-reviewer',       role: 'QA Reviewer',         icon: '🧪', color: '#ef4444' },
-  { key: 'customer-support',  role: 'Support Specialist',  icon: '📞', color: '#06b6d4' },
-  { key: 'developer',         role: 'Senior Developer',    icon: '⚙️',  color: '#6366f1' },
-  { key: 'product-manager',   role: 'Product Manager',     icon: '📋', color: '#ec4899' },
-  { key: 'financial-analyst', role: 'Financial Analyst',   icon: '💰', color: '#84cc16' },
-  { key: 'devops-engineer',   role: 'DevOps Engineer',     icon: '🚀', color: '#f97316' },
+  {
+    key: 'research-analyst', role: 'Research Analyst', icon: '🔍', color: '#3b82f6',
+    goal: 'Conduct thorough research on {topic} and synthesize key findings into a clear, actionable report',
+    backstory: 'You are a meticulous researcher with expertise in finding and evaluating information from diverse sources. You prioritize accuracy, always cite sources, and clearly distinguish facts from opinions.',
+    model: 'claude-sonnet-4-6',
+  },
+  {
+    key: 'content-writer', role: 'Content Writer', icon: '✍️', color: '#8b5cf6',
+    goal: 'Write engaging, well-structured content that serves the target audience and achieves the communication objective',
+    backstory: 'You are a skilled writer who adapts tone and style to context. You create content that is clear, compelling, and tailored to the reader.',
+    model: 'claude-sonnet-4-6',
+  },
+  {
+    key: 'code-reviewer', role: 'Code Reviewer', icon: '🧑‍💻', color: '#10b981',
+    goal: 'Review code for quality, security vulnerabilities, performance issues, and adherence to best practices',
+    backstory: 'You are a senior engineer with deep expertise in code quality. You identify bugs, security risks, and architectural issues, and always explain the why behind your feedback.',
+    model: 'claude-opus-4-6',
+  },
+  {
+    key: 'data-analyst', role: 'Data Analyst', icon: '📊', color: '#f59e0b',
+    goal: 'Analyze the provided data and extract actionable insights with clear visualisation recommendations',
+    backstory: 'You are an analytical thinker who turns raw data into business intelligence. You apply statistical reasoning, identify trends, and communicate findings to both technical and non-technical audiences.',
+    model: 'claude-sonnet-4-6',
+  },
+  {
+    key: 'qa-reviewer', role: 'QA Reviewer', icon: '🧪', color: '#ef4444',
+    goal: 'Evaluate the output quality, identify gaps or errors, and score it on a scale of 1-10 with specific improvement feedback',
+    backstory: 'You are a quality assurance specialist with a keen eye for detail. You systematically evaluate outputs against requirements and provide structured, actionable feedback.',
+    model: 'claude-haiku-4-5-20251001',
+  },
+  {
+    key: 'customer-support', role: 'Support Specialist', icon: '📞', color: '#06b6d4',
+    goal: 'Resolve the customer issue with empathy, accuracy, and efficiency while maintaining brand voice',
+    backstory: 'You are a patient, empathetic support specialist who genuinely cares about solving customer problems. You balance friendliness with professionalism and always follow up to confirm resolution.',
+    model: 'claude-haiku-4-5-20251001',
+  },
+  {
+    key: 'developer', role: 'Senior Developer', icon: '⚙️', color: '#6366f1',
+    goal: 'Write clean, production-ready code that solves the problem with proper error handling and documentation',
+    backstory: 'You are a senior software engineer who writes maintainable, performant code. You follow SOLID principles, consider edge cases, and always think about the long-term maintainability of the solution.',
+    model: 'claude-opus-4-6',
+  },
+  {
+    key: 'product-manager', role: 'Product Manager', icon: '📋', color: '#ec4899',
+    goal: 'Define clear requirements, user stories, and acceptance criteria that align engineering and business goals',
+    backstory: 'You are a product manager who bridges user needs and technical capabilities. You write precise specs, prioritize ruthlessly, and always tie features back to measurable outcomes.',
+    model: 'claude-sonnet-4-6',
+  },
+  {
+    key: 'financial-analyst', role: 'Financial Analyst', icon: '💰', color: '#84cc16',
+    goal: 'Analyze the financial data and produce clear investment or business insights with supporting quantitative reasoning',
+    backstory: 'You are a rigorous financial analyst who combines quantitative modelling with business intuition. You present findings with appropriate uncertainty ranges and always flag key assumptions.',
+    model: 'claude-opus-4-6',
+  },
+  {
+    key: 'devops-engineer', role: 'DevOps Engineer', icon: '🚀', color: '#f97316',
+    goal: 'Analyze the infrastructure problem, diagnose root causes, and recommend concrete solutions with implementation steps',
+    backstory: 'You are a DevOps engineer who thinks in systems. You balance reliability, cost, and developer experience, and always consider operational concerns like observability, rollback strategies, and failure modes.',
+    model: 'claude-sonnet-4-6',
+  },
 ]
 
 const NODE_WIDTH = 200
@@ -120,6 +170,7 @@ export default function ForgeStudio() {
   const [selectedNode, setSelectedNode] = useState<string | null>(null)
   const [dragging, setDragging] = useState<{ id: string; offsetX: number; offsetY: number } | null>(null)
   const [connecting, setConnecting] = useState<string | null>(null) // source node id
+  const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null)
   const [showCode, setShowCode] = useState(false)
   const [generatedCode, setGeneratedCode] = useState('')
   const [runOutput, setRunOutput] = useState<RunOutput[]>([])
@@ -165,7 +216,13 @@ export default function ForgeStudio() {
         type: 'agent',
         x: Math.max(0, x),
         y: Math.max(0, y),
-        data: { roleKey, role: role?.role ?? 'Agent', goal: `Complete your task as ${role?.role}` },
+        data: {
+          roleKey,
+          role: role?.role ?? 'Agent',
+          goal: role?.goal ?? `Complete your task as ${role?.role}`,
+          backstory: role?.backstory ?? '',
+          model: role?.model ?? 'claude-sonnet-4-6',
+        },
       }])
     } else if (blockType) {
       setNodes(prev => [...prev, {
@@ -184,43 +241,57 @@ export default function ForgeStudio() {
     }
   }, [flowName])
 
+  // ── ESC to cancel connecting ───────────────────────────────────────────────
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') { setConnecting(null); setMousePos(null) } }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
+
   // ── Node dragging ──────────────────────────────────────────────────────────
   const handleNodeMouseDown = (e: React.MouseEvent, id: string) => {
     if (connecting) return
     e.stopPropagation()
     const node = nodes.find(n => n.id === id)!
-    setDragging({ id, offsetX: e.clientX - node.x, offsetY: e.clientY - node.y })
+    const canvasRect = canvasRef.current?.getBoundingClientRect()
+    if (!canvasRect) return
+    setDragging({ id, offsetX: (e.clientX - canvasRect.left) - node.x, offsetY: (e.clientY - canvasRect.top) - node.y })
     setSelectedNode(id)
   }
 
   const handleMouseMove = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
-    if (!dragging) return
     const canvasRect = canvasRef.current?.getBoundingClientRect()
     if (!canvasRect) return
+    if (connecting) {
+      setMousePos({ x: e.clientX - canvasRect.left, y: e.clientY - canvasRect.top })
+    }
+    if (!dragging) return
     setNodes(prev => prev.map(n =>
       n.id === dragging.id
-        ? { ...n, x: e.clientX - dragging.offsetX, y: e.clientY - dragging.offsetY }
+        ? { ...n, x: (e.clientX - canvasRect.left) - dragging.offsetX, y: (e.clientY - canvasRect.top) - dragging.offsetY }
         : n
     ))
-  }, [dragging])
+  }, [dragging, connecting])
 
   const handleMouseUp = useCallback(() => {
     setDragging(null)
   }, [])
 
   // ── Connection drawing ─────────────────────────────────────────────────────
-  const startConnect = (e: React.MouseEvent, sourceId: string) => {
-    e.stopPropagation()
+  const startConnect = (sourceId: string) => {
     setConnecting(sourceId)
+    setMousePos(null)
   }
 
   const completeConnect = (targetId: string) => {
     if (!connecting || connecting === targetId) {
       setConnecting(null)
+      setMousePos(null)
       return
     }
     setEdges(prev => [...prev, { id: makeId(), source: connecting, target: targetId }])
     setConnecting(null)
+    setMousePos(null)
   }
 
   // ── Delete selected node ───────────────────────────────────────────────────
@@ -501,7 +572,7 @@ export default function ForgeStudio() {
                 onMouseUp={handleMouseUp}
                 onDragOver={e => e.preventDefault()}
                 onDrop={handleSidebarDrop}
-                onClick={() => { if (connecting) setConnecting(null); else setSelectedNode(null) }}
+                onClick={() => { if (connecting) { setConnecting(null); setMousePos(null) } else setSelectedNode(null) }}
               >
                 {/* Edges */}
                 {edges.map(edge => {
@@ -537,6 +608,26 @@ export default function ForgeStudio() {
                     <polygon points="0 0, 8 3, 0 6" fill="#4b5563" />
                   </marker>
                 </defs>
+
+                {/* Temp connection line while connecting */}
+                {connecting && mousePos && (() => {
+                  const src = nodes.find(n => n.id === connecting)
+                  if (!src) return null
+                  const x1 = src.x + NODE_WIDTH
+                  const y1 = src.y + NODE_HEIGHT / 2
+                  const cx = (x1 + mousePos.x) / 2
+                  return (
+                    <path
+                      d={`M ${x1} ${y1} C ${cx} ${y1}, ${cx} ${mousePos.y}, ${mousePos.x} ${mousePos.y}`}
+                      fill="none"
+                      stroke="#f59e0b"
+                      strokeWidth={2}
+                      strokeDasharray="6,3"
+                      opacity={0.75}
+                      style={{ pointerEvents: 'none' }}
+                    />
+                  )
+                })()}
 
                 {/* Nodes */}
                 {nodes.map(node => {
@@ -587,18 +678,18 @@ export default function ForgeStudio() {
                       <circle
                         cx={NODE_WIDTH}
                         cy={NODE_HEIGHT / 2}
-                        r={6}
+                        r={8}
                         fill={connecting === node.id ? '#f59e0b' : color}
                         stroke="#111827"
                         strokeWidth={2}
                         style={{ cursor: 'crosshair' }}
-                        onMouseDown={e => { e.stopPropagation(); startConnect(e, node.id) }}
+                        onClick={e => { e.stopPropagation(); startConnect(node.id) }}
                       />
                       {/* Connect target dot (left side) */}
                       <circle
                         cx={0}
                         cy={NODE_HEIGHT / 2}
-                        r={5}
+                        r={7}
                         fill={connecting ? '#6366f1' : '#374151'}
                         stroke="#111827"
                         strokeWidth={1.5}

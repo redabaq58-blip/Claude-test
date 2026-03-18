@@ -39,7 +39,9 @@ conversationsRouter.get('/:id', async (req, res) => {
 conversationsRouter.post('/', async (req, res) => {
   const { agentId, message } = req.body
   if (!agentId) return fail(res, 'agentId is required')
-  if (!message) return fail(res, 'message is required')
+  if (!message || typeof message !== 'string' || !message.trim()) {
+    return fail(res, 'message must be a non-empty string')
+  }
 
   const [agentRow] = await db.select().from(schema.agents).where(eq(schema.agents.id, agentId))
   if (!agentRow) return fail(res, 'Agent not found', 404)
@@ -74,7 +76,13 @@ conversationsRouter.post('/:id/message', async (req, res) => {
   if (!agentRow) return fail(res, 'Agent not found', 404)
 
   const { message } = req.body
-  if (!message) return fail(res, 'message is required')
+  if (!message || typeof message !== 'string' || !message.trim()) {
+    return fail(res, 'message must be a non-empty string')
+  }
+  const MAX_MSG_BYTES = 100_000
+  if (Buffer.byteLength(message, 'utf8') > MAX_MSG_BYTES) {
+    return fail(res, `message too large (max ${MAX_MSG_BYTES / 1000} KB)`)
+  }
 
   // Parse existing messages and append user message
   const messages: Message[] = JSON.parse(conv.messages ?? '[]')

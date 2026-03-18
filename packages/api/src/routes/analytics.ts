@@ -7,7 +7,7 @@ export const analyticsRouter = Router()
 
 // GET /api/analytics/usage — token usage over time
 analyticsRouter.get('/usage', async (req, res) => {
-  const days = parseInt(req.query.days as string ?? '30', 10)
+  const days = Math.max(1, Math.min(365, parseInt((req.query.days as string) ?? '30', 10) || 30))
   const interval = sql.raw(`'-${days} days'`)
 
   const rows = await db.all(sql`
@@ -29,7 +29,7 @@ analyticsRouter.get('/usage', async (req, res) => {
 
 // GET /api/analytics/costs — cost breakdown
 analyticsRouter.get('/costs', async (req, res) => {
-  const days = parseInt(req.query.days as string ?? '30', 10)
+  const days = Math.max(1, Math.min(365, parseInt((req.query.days as string) ?? '30', 10) || 30))
   const interval = sql.raw(`'-${days} days'`)
 
   const byModel = await db.all(sql`
@@ -55,21 +55,24 @@ analyticsRouter.get('/costs', async (req, res) => {
     ORDER BY date DESC
   `)
 
-  const [totals] = await db.all(sql`
+  // Always returns exactly one row from COUNT, SUM returns NULL when no rows → coalesce to 0
+  const [totalsRow] = (await db.all(sql`
     SELECT
-      SUM(cost_usd) as total_cost,
-      SUM(input_tokens + output_tokens) as total_tokens,
+      COALESCE(SUM(cost_usd), 0) as total_cost,
+      COALESCE(SUM(input_tokens + output_tokens), 0) as total_tokens,
       COUNT(*) as total_requests
     FROM usage_events
     WHERE created_at >= datetime('now', ${interval})
-  `) as [{ total_cost: number; total_tokens: number; total_requests: number }]
+  `)) as [{ total_cost: number; total_tokens: number; total_requests: number }]
+
+  const totals = totalsRow ?? { total_cost: 0, total_tokens: 0, total_requests: 0 }
 
   ok(res, { byModel, byDay, totals, days })
 })
 
 // GET /api/analytics/runs — agent run stats
 analyticsRouter.get('/runs', async (req, res) => {
-  const days = parseInt(req.query.days as string ?? '30', 10)
+  const days = Math.max(1, Math.min(365, parseInt((req.query.days as string) ?? '30', 10) || 30))
   const interval = sql.raw(`'-${days} days'`)
 
   const byStatus = await db.all(sql`
@@ -88,7 +91,7 @@ analyticsRouter.get('/runs', async (req, res) => {
       COUNT(*) as run_count,
       SUM(CASE WHEN r.status = 'completed' THEN 1 ELSE 0 END) as success_count,
       AVG(r.duration_ms) as avg_duration_ms,
-      SUM(r.cost_usd) as total_cost
+      COALESCE(SUM(r.cost_usd), 0) as total_cost
     FROM agent_runs r
     LEFT JOIN agents a ON r.agent_id = a.id
     WHERE r.started_at >= datetime('now', ${interval})

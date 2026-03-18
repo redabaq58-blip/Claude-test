@@ -26,8 +26,13 @@ streamRouter.post('/:id/stream', async (req: Request, res: Response) => {
   }
 
   const { input } = req.body
-  if (!input) {
-    res.status(400).json({ data: null, error: 'input is required' })
+  if (!input || typeof input !== 'string' || !input.trim()) {
+    res.status(400).json({ data: null, error: 'input must be a non-empty string' })
+    return
+  }
+  const MAX_INPUT_BYTES = 100_000 // 100 KB
+  if (Buffer.byteLength(input, 'utf8') > MAX_INPUT_BYTES) {
+    res.status(400).json({ data: null, error: `input too large (max ${MAX_INPUT_BYTES / 1000} KB)` })
     return
   }
 

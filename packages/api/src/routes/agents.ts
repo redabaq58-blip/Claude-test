@@ -5,6 +5,7 @@ import { db, schema } from '../db/index.js'
 import { ok, fail } from '../middleware/response.js'
 import { ClaudeAgent } from '@claudeforge/agents'
 import { MCPRegistry } from '@claudeforge/mcp'
+import type { ClaudeModel } from '@claudeforge/core'
 
 export const agentsRouter = Router()
 
@@ -79,7 +80,13 @@ agentsRouter.post('/:id/run', async (req, res) => {
   if (!agentRow) return fail(res, 'Agent not found', 404)
 
   const { input } = req.body
-  if (!input) return fail(res, 'input is required')
+  if (!input || typeof input !== 'string' || !input.trim()) {
+    return fail(res, 'input must be a non-empty string')
+  }
+  const MAX_INPUT_BYTES = 100_000
+  if (Buffer.byteLength(input, 'utf8') > MAX_INPUT_BYTES) {
+    return fail(res, `input too large (max ${MAX_INPUT_BYTES / 1000} KB)`)
+  }
 
   const runId = uuidv4()
   const startedAt = new Date().toISOString()
@@ -108,7 +115,7 @@ agentsRouter.post('/:id/run', async (req, res) => {
     const agent = new ClaudeAgent({
       name: agentRow.name,
       description: agentRow.description ?? '',
-      model: agentRow.model as 'auto',
+      model: (agentRow.model ?? 'auto') as ClaudeModel | 'auto',
       systemPrompt: agentRow.systemPrompt ?? '',
       tools,
       maxTokens: agentRow.maxTokens ?? 8192,
@@ -159,27 +166,35 @@ agentsRouter.post('/:id/run', async (req, res) => {
   }
 })
 
-// POST /api/agents/:id/clone — duplicate agent with new id
+// POST /api/agents/:id/clone — duplicate agent with new id and fresh timestamps
 agentsRouter.post('/:id/clone', async (req, res) => {
   const [original] = await db.select().from(schema.agents).where(eq(schema.agents.id, req.params.id))
   if (!original) return fail(res, 'Agent not found', 404)
 
+  const now = new Date().toISOString()
   const cloned = {
-    ...original,
     id: uuidv4(),
     name: `Copy of ${original.name}`,
-    createdAt: undefined as unknown as string,
-    updatedAt: undefined as unknown as string,
+    description: original.description,
+    model: original.model,
+    systemPrompt: original.systemPrompt,
+    tools: original.tools,
+    mcpServers: original.mcpServers,
+    skillIds: original.skillIds,
+    hookConfig: original.hookConfig,
+    maxTokens: original.maxTokens,
+    temperature: original.temperature,
+    isActive: original.isActive,
+    createdAt: now,
+    updatedAt: now,
   }
-  delete (cloned as Record<string, unknown>).createdAt
-  delete (cloned as Record<string, unknown>).updatedAt
 
   await db.insert(schema.agents).values(cloned)
   const [created] = await db.select().from(schema.agents).where(eq(schema.agents.id, cloned.id))
   ok(res, created)
 })
 
-// GET /api/agents/:id/export — export agent as JSON
+// GET /api/agents/:id/export — export agent as JSON (full config including tools)
 agentsRouter.get('/:id/export', async (req, res) => {
   const [agent] = await db.select().from(schema.agents).where(eq(schema.agents.id, req.params.id))
   if (!agent) return fail(res, 'Agent not found', 404)
@@ -194,6 +209,10 @@ agentsRouter.get('/:id/export', async (req, res) => {
       systemPrompt: agent.systemPrompt,
       maxTokens: agent.maxTokens,
       temperature: agent.temperature,
+      tools: JSON.parse(agent.tools ?? '[]'),
+      mcpServers: JSON.parse(agent.mcpServers ?? '[]'),
+      skillIds: JSON.parse(agent.skillIds ?? '[]'),
+      hookConfig: JSON.parse(agent.hookConfig ?? '{}'),
     },
   }
 
@@ -202,7 +221,7 @@ agentsRouter.get('/:id/export', async (req, res) => {
   res.send(JSON.stringify(exportData, null, 2))
 })
 
-// POST /api/agents/import — import agent from JSON
+// POST /api/agents/import — import agent from JSON export file
 agentsRouter.post('/import', async (req, res) => {
   const { claudeforge_version, agent: agentData } = req.body
   if (!claudeforge_version || !agentData?.name) {
@@ -217,6 +236,12 @@ agentsRouter.post('/import', async (req, res) => {
     systemPrompt: agentData.systemPrompt ?? '',
     maxTokens: agentData.maxTokens ?? 8192,
     temperature: agentData.temperature ?? 1.0,
+    tools: Array.isArray(agentData.tools) ? JSON.stringify(agentData.tools) : '[]',
+    mcpServers: Array.isArray(agentData.mcpServers) ? JSON.stringify(agentData.mcpServers) : '[]',
+    skillIds: Array.isArray(agentData.skillIds) ? JSON.stringify(agentData.skillIds) : '[]',
+    hookConfig: agentData.hookConfig && typeof agentData.hookConfig === 'object'
+      ? JSON.stringify(agentData.hookConfig)
+      : '{}',
   }
 
   await db.insert(schema.agents).values(newAgent)
@@ -224,14 +249,16 @@ agentsRouter.post('/import', async (req, res) => {
   ok(res, created)
 })
 
-// GET /api/agents/:id/runs — get run history for an agent
+// GET /api/agents/:id/runs — get run history for an agent (paginated)
 agentsRouter.get('/:id/runs', async (req, res) => {
-  const limit = parseInt(req.query.limit as string ?? '20', 10)
+  const limit = Math.min(parseInt((req.query.limit as string) ?? '20', 10), 100)
+  const offset = parseInt((req.query.offset as string) ?? '0', 10)
   const runs = await db
     .select()
     .from(schema.agentRuns)
     .where(eq(schema.agentRuns.agentId, req.params.id))
     .orderBy(desc(schema.agentRuns.startedAt))
     .limit(limit)
-  ok(res, runs)
+    .offset(offset)
+  ok(res, runs, { limit, offset })
 })

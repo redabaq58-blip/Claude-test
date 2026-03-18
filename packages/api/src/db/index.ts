@@ -118,6 +118,20 @@ export function initDb(): void {
       cost_usd REAL NOT NULL DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now'))
     );
+
+    -- ── Indexes for query performance ──────────────────────────────────────────
+    -- Analytics queries filter heavily by created_at and model
+    CREATE INDEX IF NOT EXISTS idx_usage_events_created_at ON usage_events(created_at);
+    CREATE INDEX IF NOT EXISTS idx_usage_events_model ON usage_events(model);
+
+    -- Agent run queries filter and sort by agent_id and started_at
+    CREATE INDEX IF NOT EXISTS idx_agent_runs_agent_id ON agent_runs(agent_id);
+    CREATE INDEX IF NOT EXISTS idx_agent_runs_started_at ON agent_runs(started_at);
+    CREATE INDEX IF NOT EXISTS idx_agent_runs_status ON agent_runs(status);
+
+    -- Conversation queries sort by updated_at
+    CREATE INDEX IF NOT EXISTS idx_conversations_agent_id ON conversations(agent_id);
+    CREATE INDEX IF NOT EXISTS idx_conversations_updated_at ON conversations(updated_at);
   `)
 }
 

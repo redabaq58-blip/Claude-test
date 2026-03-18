@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { readdirSync, readFileSync, existsSync } from 'fs'
-import { resolve, join, basename, dirname } from 'path'
+import { resolve, join, basename } from 'path'
 import { ok, fail } from '../middleware/response.js'
 
 export const promptsRouter = Router()
@@ -65,7 +65,11 @@ function parsePromptFile(filePath: string, category: string): Prompt {
   }
 }
 
-const PROMPTS_DIR = resolve(process.cwd(), '../../prompts')
+// Resolve prompts dir relative to this source file's location:
+//   Source:   packages/api/src/routes/  →  ../../../../prompts
+//   Compiled: packages/api/dist/routes/ →  ../../../../prompts
+// Both point to the repo-root prompts/ directory.
+const PROMPTS_DIR = resolve(__dirname, '../../../../prompts')
 
 function loadAllPrompts(): Prompt[] {
   if (!existsSync(PROMPTS_DIR)) return []

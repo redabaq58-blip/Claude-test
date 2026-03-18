@@ -107,13 +107,25 @@ export function createCodeTools(options: CodeServerOptions = {}): Tool[] {
         if (!allowedLanguages.includes('bash') && !allowedLanguages.includes('sh')) {
           throw new Error('Bash execution is not allowed')
         }
-        // Block dangerous commands
-        const dangerous = ['rm -rf', 'sudo', 'chmod 777', 'curl | sh', 'wget | sh', '> /dev/']
-        const cmd = command as string
+        // Block dangerous commands (case-insensitive, checks encoded variants too)
+        const dangerous = [
+          'rm -rf', 'rm -r', 'sudo', 'su -', 'chmod 777', 'chmod -R',
+          'curl | sh', 'curl|sh', 'wget | sh', 'wget|sh', 'bash <(', 'sh <(',
+          '> /dev/', '/etc/passwd', '/etc/shadow', 'mkfs', 'dd if=', 'fork bomb',
+          ':(){ :|:& };:', 'base64 -d', 'base64 --decode',
+          '/proc/', 'iptables', 'ufw', 'systemctl', 'shutdown', 'reboot', 'halt',
+          'kill -9', 'pkill', 'killall', 'nc -', 'netcat', 'ncat',
+        ]
+        const cmd = String(command)
+        const cmdLower = cmd.toLowerCase()
         for (const pattern of dangerous) {
-          if (cmd.includes(pattern)) {
+          if (cmdLower.includes(pattern.toLowerCase())) {
             throw new Error(`Blocked dangerous pattern: "${pattern}"`)
           }
+        }
+        // Block attempts to access sensitive environment variables
+        if (/\$\{?ANTHROPIC_API_KEY/.test(cmd) || /\$\{?AWS_SECRET/.test(cmd)) {
+          throw new Error('Blocked: cannot access sensitive environment variables')
         }
         const result = runCode('bash', ['-c', cmd])
         return {

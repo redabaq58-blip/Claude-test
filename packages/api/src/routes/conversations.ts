@@ -4,6 +4,7 @@ import { eq, desc } from 'drizzle-orm'
 import { db, schema } from '../db/index.js'
 import { ok, fail } from '../middleware/response.js'
 import { ClaudeClient, resolveModel, calculateCost } from '@claudeforge/core'
+import type { ClaudeModel } from '@claudeforge/core'
 
 export const conversationsRouter = Router()
 
@@ -32,7 +33,9 @@ conversationsRouter.get('/:id', async (req, res) => {
     .from(schema.conversations)
     .where(eq(schema.conversations.id, req.params.id))
   if (!conv) return fail(res, 'Conversation not found', 404)
-  ok(res, { ...conv, messages: JSON.parse(conv.messages ?? '[]') })
+  let parsedMessages: unknown[] = []
+  try { parsedMessages = JSON.parse(conv.messages ?? '[]') } catch { parsedMessages = [] }
+  ok(res, { ...conv, messages: parsedMessages })
 })
 
 // POST /api/conversations — create new conversation (and run first message)
@@ -85,7 +88,8 @@ conversationsRouter.post('/:id/message', async (req, res) => {
   }
 
   // Parse existing messages and append user message
-  const messages: Message[] = JSON.parse(conv.messages ?? '[]')
+  let messages: Message[] = []
+  try { messages = JSON.parse(conv.messages ?? '[]') } catch { messages = [] }
   const userMsg: Message = { id: uuidv4(), role: 'user', content: message, timestamp: new Date().toISOString() }
   messages.push(userMsg)
 
@@ -99,7 +103,7 @@ conversationsRouter.post('/:id/message', async (req, res) => {
 
   try {
     const client = new ClaudeClient()
-    const model = resolveModel(agentRow.model as 'auto')
+    const model = resolveModel((agentRow.model ?? 'auto') as ClaudeModel | 'auto')
 
     // Build anthropic-format message history
     const apiMessages = messages.map((m) => ({ role: m.role, content: m.content }))

@@ -73,11 +73,12 @@ workflowsRouter.post('/:id/run', async (req, res) => {
   if (!workflowRow) return fail(res, 'Workflow not found', 404)
 
   const { context = {} } = req.body
-  const steps = JSON.parse(workflowRow.steps ?? '[]') as Array<{
-    agentId: string
-    inputTemplate: string
-    outputKey?: string
-  }>
+  let steps: Array<{ agentId: string; inputTemplate: string; outputKey?: string }> = []
+  try {
+    steps = JSON.parse(workflowRow.steps ?? '[]')
+  } catch {
+    return fail(res, 'Workflow has malformed steps data', 500)
+  }
 
   const runId = uuidv4()
   await db.insert(schema.workflowRuns).values({

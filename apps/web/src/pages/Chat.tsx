@@ -35,6 +35,7 @@ export default function Chat() {
   const [streaming, setStreaming] = useState(false)
   const [streamBuffer, setStreamBuffer] = useState('')
   const [loadingConv, setLoadingConv] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const abortRef = useRef(false)
@@ -46,8 +47,8 @@ export default function Chat() {
       // Auto-select from URL param or first agent
       const agent = initAgentId ? list.find((a) => a.id === initAgentId) ?? list[0] : list[0]
       if (agent) setSelectedAgent(agent)
-    }).catch(() => {})
-    conversationsApi.list().then(setConversations).catch(() => {})
+    }).catch((e: Error) => setLoadError(e.message))
+    conversationsApi.list().then(setConversations).catch(() => { /* non-critical */ })
     // Pre-fill input from ?prompt= param (e.g. from Prompt Library)
     if (initPrompt) setInput(decodeURIComponent(initPrompt))
   }, [initAgentId, initPrompt])
@@ -166,7 +167,13 @@ export default function Chat() {
   }
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full flex-col">
+      {loadError && (
+        <div className="px-4 py-2 bg-red-950 border-b border-red-800 text-red-400 text-xs">
+          Could not load agents: {loadError}
+        </div>
+      )}
+      <div className="flex flex-1 min-h-0">
       {/* ── Sidebar ─────────────────────────────────────────────────────── */}
       <aside className="w-64 flex-shrink-0 bg-gray-900 border-r border-gray-800 flex flex-col">
         {/* Agent selector */}
@@ -377,6 +384,7 @@ export default function Chat() {
             Conversations are saved automatically · {conversations.length} conversation{conversations.length !== 1 ? 's' : ''} in history
           </div>
         </div>
+      </div>
       </div>
     </div>
   )

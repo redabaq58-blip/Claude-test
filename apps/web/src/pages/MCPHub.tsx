@@ -29,12 +29,16 @@ function StatusBadge({ status }: { status: string }) {
 export default function MCPHub() {
   const [servers, setServers] = useState<McpServer[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [testing, setTesting] = useState<Record<string, boolean>>({})
   const [testResults, setTestResults] = useState<Record<string, string>>({})
   const [form, setForm] = useState({ name: '', type: 'filesystem' })
 
-  const load = () => mcpApi.list().then(setServers).catch(() => {}).finally(() => setLoading(false))
+  const load = () => {
+    setLoadError(null)
+    mcpApi.list().then(setServers).catch((e: Error) => setLoadError(e.message)).finally(() => setLoading(false))
+  }
   useEffect(() => { load() }, [])
 
   const handleCreate = async () => {
@@ -86,6 +90,12 @@ export default function MCPHub() {
           + Add Server
         </button>
       </div>
+
+      {loadError && (
+        <div className="mb-6 px-4 py-3 bg-red-950 border border-red-800 rounded-lg text-red-400 text-sm">
+          Failed to load MCP servers: {loadError}
+        </div>
+      )}
 
       {/* Available server types info */}
       <div className="grid grid-cols-5 gap-3 mb-8">

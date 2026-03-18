@@ -54,13 +54,15 @@ export default function Analytics() {
   const [runs, setRuns] = useState<RunAnalytics | null>(null)
   const [usage, setUsage] = useState<UsageRow[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [days, setDays] = useState(30)
 
   useEffect(() => {
     setLoading(true)
+    setError(null)
     Promise.all([analyticsApi.costs(days), analyticsApi.runs(days), analyticsApi.usage(days)])
       .then(([c, r, u]) => { setCosts(c); setRuns(r); setUsage(u) })
-      .catch(() => {})
+      .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false))
   }, [days])
 
@@ -85,6 +87,12 @@ export default function Analytics() {
           <option value={90}>Last 90 days</option>
         </select>
       </div>
+
+      {error && (
+        <div className="mb-6 px-4 py-3 bg-red-950 border border-red-800 rounded-lg text-red-400 text-sm">
+          Failed to load analytics: {error}
+        </div>
+      )}
 
       {/* Summary cards */}
       <div className="grid grid-cols-3 gap-4 mb-8">

@@ -18,3 +18,12 @@ export type { Skill, SkillMetadata } from './skills.js'
 
 export { AgentMemory } from './memory.js'
 export type { MemoryOptions } from './memory.js'
+
+export { WorkflowGraph, CompiledGraph, END } from './graph.js'
+export type {
+  NodeHandler,
+  ConditionalRouter,
+  NodeExecution,
+  Checkpoint,
+  GraphRunResult,
+} from './graph.js'

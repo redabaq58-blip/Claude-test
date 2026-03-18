@@ -1,11 +1,6 @@
 # ── Build stage ──────────────────────────────────────────────────────────────
 FROM node:22-slim AS builder
 
-# Install Python + build tools needed for better-sqlite3 native compilation
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 make g++ \
-  && rm -rf /var/lib/apt/lists/*
-
 WORKDIR /app
 
 # Copy manifests first for layer caching
@@ -25,10 +20,6 @@ RUN npm run build
 
 # ── Runtime stage ─────────────────────────────────────────────────────────────
 FROM node:22-slim AS runtime
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 make g++ \
-  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 

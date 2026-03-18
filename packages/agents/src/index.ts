@@ -27,3 +27,6 @@ export type {
   Checkpoint,
   GraphRunResult,
 } from './graph.js'
+
+export { forge, ROLE_LIBRARY, getForgeCheckpoint, listForgeThreads, deleteForgeThread } from './forge.js'
+export type { ForgeAgent, ForgeOptions, ForgeResult, ForgeStep, ForgeEvent } from './forge.js'

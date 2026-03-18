@@ -14,10 +14,12 @@ import Occupations from './pages/Occupations'
 import Schedules from './pages/Schedules'
 import BatchJobs from './pages/BatchJobs'
 import Evals from './pages/Evals'
+import ForgeStudio from './pages/ForgeStudio'
 import CommandPalette from './components/CommandPalette'
 
 const NAV = [
   { to: '/', label: 'Dashboard', icon: '⬡' },
+  { to: '/forge', label: 'Forge Studio', icon: '⚡' },
   { to: '/chat', label: 'Chat', icon: '◉' },
   { to: '/agents', label: 'Agent Studio', icon: '◈' },
   { to: '/prompts', label: 'Prompt Library', icon: '◧' },
@@ -112,6 +114,7 @@ function AppInner() {
           <Route path="/schedules" element={<Schedules />} />
           <Route path="/batches" element={<BatchJobs />} />
           <Route path="/evals" element={<Evals />} />
+          <Route path="/forge" element={<ForgeStudio />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

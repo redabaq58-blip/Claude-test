@@ -195,6 +195,53 @@ const DDL_STATEMENTS = [
   `CREATE INDEX IF NOT EXISTS idx_agent_runs_status ON agent_runs(status)`,
   `CREATE INDEX IF NOT EXISTS idx_conversations_agent_id ON conversations(agent_id)`,
   `CREATE INDEX IF NOT EXISTS idx_conversations_updated_at ON conversations(updated_at)`,
+  // ── Forge runs (forge() engine persistence) ──────────────────────────────
+  `CREATE TABLE IF NOT EXISTS forge_runs (
+    id TEXT PRIMARY KEY,
+    goal TEXT NOT NULL,
+    agents TEXT NOT NULL DEFAULT '[]',
+    options TEXT NOT NULL DEFAULT '{}',
+    state TEXT NOT NULL DEFAULT '{}',
+    steps TEXT NOT NULL DEFAULT '[]',
+    current_step INTEGER DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'running',
+    resume_prompt TEXT,
+    output TEXT DEFAULT '',
+    cost_usd REAL DEFAULT 0,
+    duration_ms INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_forge_runs_status ON forge_runs(status)`,
+  `CREATE INDEX IF NOT EXISTS idx_forge_runs_created_at ON forge_runs(created_at)`,
+  // ── Studio flows (Forge Studio visual canvas) ─────────────────────────────
+  `CREATE TABLE IF NOT EXISTS studio_flows (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT DEFAULT '',
+    definition TEXT NOT NULL DEFAULT '{}',
+    generated_code TEXT DEFAULT '',
+    is_deployed INTEGER DEFAULT 0,
+    deployed_at TEXT,
+    run_count INTEGER DEFAULT 0,
+    last_run_at TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  )`,
+  `CREATE TABLE IF NOT EXISTS studio_runs (
+    id TEXT PRIMARY KEY,
+    flow_id TEXT NOT NULL,
+    thread_id TEXT,
+    inputs TEXT DEFAULT '{}',
+    status TEXT NOT NULL DEFAULT 'pending',
+    output TEXT DEFAULT '',
+    cost_usd REAL DEFAULT 0,
+    duration_ms INTEGER DEFAULT 0,
+    error TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    completed_at TEXT
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_studio_runs_flow_id ON studio_runs(flow_id)`,
 ]
 
 export async function initDb(): Promise<void> {

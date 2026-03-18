@@ -401,3 +401,112 @@ export async function* streamAgent(agentId: string, input: string): AsyncGenerat
     }
   }
 }
+
+// ─── Forge API ─────────────────────────────────────────────────────────────────
+
+export interface ForgeAgent {
+  role: string
+  goal?: string
+  backstory?: string
+  model?: string
+  when?: string
+  goto?: string
+  as?: string
+}
+
+export interface ForgeThread {
+  threadId: string
+  goal: string
+  status: 'running' | 'interrupted' | 'completed' | 'failed'
+  output: string
+  resumePrompt?: string
+  steps: Array<{ agent: string; output: string; costUsd: number; status: string }>
+  costUsd: number
+  durationMs: number
+  currentStep: number
+  createdAt: string
+}
+
+export const forgeApi = {
+  run: (agents: ForgeAgent[], goal: string, options?: Record<string, unknown>) =>
+    request<{ threadId: string; status: string }>('/forge/run', {
+      method: 'POST',
+      body: JSON.stringify({ agents, goal, options }),
+    }),
+
+  listThreads: () => request<ForgeThread[]>('/forge/threads'),
+
+  getThread: (threadId: string) =>
+    request<ForgeThread>(`/forge/threads/${threadId}`),
+
+  resume: (threadId: string, value: string) =>
+    request<{ threadId: string; status: string }>(`/forge/threads/${threadId}/resume`, {
+      method: 'POST',
+      body: JSON.stringify({ value }),
+    }),
+
+  deleteThread: (threadId: string) =>
+    request<{ deleted: boolean }>(`/forge/threads/${threadId}`, { method: 'DELETE' }),
+
+  getRoles: () =>
+    request<Array<{ key: string; role: string; goal?: string; backstory?: string; model?: string }>>('/forge/roles'),
+}
+
+// ─── Studio API ────────────────────────────────────────────────────────────────
+
+export interface StudioFlow {
+  id: string
+  name: string
+  description?: string
+  isDeployed?: boolean
+  deployedAt?: string
+  runCount?: number
+  lastRunAt?: string
+  definition?: { nodes: unknown[]; edges: unknown[]; variables: string[] }
+  createdAt: string
+}
+
+export const studioApi = {
+  listFlows: () => request<StudioFlow[]>('/studio/flows'),
+
+  getFlow: (id: string) => request<StudioFlow>(`/studio/flows/${id}`),
+
+  createFlow: (data: { name: string; description?: string; definition: unknown }) =>
+    request<{ id: string; name: string; generatedCode: string }>('/studio/flows', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  updateFlow: (id: string, data: { name?: string; description?: string; definition?: unknown }) =>
+    request<{ updated: boolean }>(`/studio/flows/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  deleteFlow: (id: string) =>
+    request<{ deleted: boolean }>(`/studio/flows/${id}`, { method: 'DELETE' }),
+
+  deploy: (id: string) =>
+    request<{ deployed: boolean; endpoint: string; curlExample: string }>(
+      `/studio/flows/${id}/deploy`,
+      { method: 'POST' }
+    ),
+
+  run: (id: string, inputs?: Record<string, string>) =>
+    request<{ runId: string; status: string }>(`/studio/flows/${id}/run`, {
+      method: 'POST',
+      body: JSON.stringify({ inputs }),
+    }),
+
+  getRuns: (flowId: string) =>
+    request<Array<{ id: string; status: string; output: string; costUsd: number; createdAt: string }>>(
+      `/studio/flows/${flowId}/runs`
+    ),
+
+  getCode: (id: string) => request<{ code: string }>(`/studio/flows/${id}/code`),
+
+  getRoles: () =>
+    request<Array<{ key: string; role: string; goal?: string; backstory?: string; model?: string }>>(
+      '/studio/roles'
+    ),
+}

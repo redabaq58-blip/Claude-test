@@ -2,10 +2,10 @@ import type { ClaudeModel, ModelTier, TaskConfig } from './types.js'
 
 // ─── Pricing (per million tokens, USD) ──────────────────────────────────────
 
-const MODEL_PRICING: Record<ModelTier, { input: number; output: number }> = {
-  opus: { input: 5.0, output: 25.0 },
-  sonnet: { input: 3.0, output: 15.0 },
-  haiku: { input: 1.0, output: 5.0 },
+const MODEL_PRICING: Record<ModelTier, { input: number; output: number; cacheRead: number; cacheWrite: number }> = {
+  opus: { input: 5.0, output: 25.0, cacheRead: 0.50, cacheWrite: 6.25 },
+  sonnet: { input: 3.0, output: 15.0, cacheRead: 0.30, cacheWrite: 3.75 },
+  haiku: { input: 0.80, output: 4.0, cacheRead: 0.08, cacheWrite: 1.00 },
 }
 
 const MODEL_IDS: Record<ModelTier, ClaudeModel> = {
@@ -63,6 +63,23 @@ export function getTier(model: ClaudeModel): ModelTier {
   if (model === MODELS.OPUS) return 'opus'
   if (model === MODELS.HAIKU) return 'haiku'
   return 'sonnet'
+}
+
+export function calculateCostWithCache(
+  model: ClaudeModel,
+  inputTokens: number,
+  outputTokens: number,
+  cacheReadTokens: number = 0,
+  cacheWriteTokens: number = 0
+): number {
+  const tier = getTier(model)
+  const pricing = MODEL_PRICING[tier]
+  return (
+    (inputTokens / 1_000_000) * pricing.input +
+    (outputTokens / 1_000_000) * pricing.output +
+    (cacheReadTokens / 1_000_000) * pricing.cacheRead +
+    (cacheWriteTokens / 1_000_000) * pricing.cacheWrite
+  )
 }
 
 export function resolveModel(model: ClaudeModel | 'auto', task?: TaskConfig): ClaudeModel {

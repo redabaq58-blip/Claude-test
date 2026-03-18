@@ -16,6 +16,10 @@ export const agents = sqliteTable('agents', {
   maxTokens: integer('max_tokens').default(8192),
   temperature: real('temperature').default(1.0),
   isActive: integer('is_active', { mode: 'boolean' }).default(true),
+  // Feature flags
+  cacheEnabled: integer('cache_enabled', { mode: 'boolean' }).default(false),
+  thinkingEnabled: integer('thinking_enabled', { mode: 'boolean' }).default(false),
+  thinkingBudget: integer('thinking_budget').default(8000),
   createdAt: text('created_at').default(sql`(datetime('now'))`),
   updatedAt: text('updated_at').default(sql`(datetime('now'))`),
 })
@@ -34,6 +38,9 @@ export const agentRuns = sqliteTable('agent_runs', {
   costUsd: real('cost_usd').default(0),
   durationMs: integer('duration_ms').default(0),
   model: text('model').default(''),
+  thinkingContent: text('thinking_content'),
+  cacheReadTokens: integer('cache_read_tokens').default(0),
+  cacheCreationTokens: integer('cache_creation_tokens').default(0),
   startedAt: text('started_at').default(sql`(datetime('now'))`),
   completedAt: text('completed_at'),
 })
@@ -109,5 +116,66 @@ export const usageEvents = sqliteTable('usage_events', {
   inputTokens: integer('input_tokens').notNull().default(0),
   outputTokens: integer('output_tokens').notNull().default(0),
   costUsd: real('cost_usd').notNull().default(0),
+  cacheReadTokens: integer('cache_read_tokens').default(0),
+  cacheCreationTokens: integer('cache_creation_tokens').default(0),
   createdAt: text('created_at').default(sql`(datetime('now'))`),
+})
+
+// ─── Schedules ────────────────────────────────────────────────────────────────
+
+export const schedules = sqliteTable('schedules', {
+  id: text('id').primaryKey(),
+  workflowId: text('workflow_id').notNull(),
+  name: text('name').notNull(),
+  type: text('type').notNull().default('cron'), // cron|webhook
+  cronExpression: text('cron_expression'),       // e.g. "0 9 * * *"
+  webhookSecret: text('webhook_secret'),
+  isActive: integer('is_active', { mode: 'boolean' }).default(true),
+  lastRunAt: text('last_run_at'),
+  nextRunAt: text('next_run_at'),
+  createdAt: text('created_at').default(sql`(datetime('now'))`),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`),
+})
+
+// ─── Batch Jobs ───────────────────────────────────────────────────────────────
+
+export const batchJobs = sqliteTable('batch_jobs', {
+  id: text('id').primaryKey(),
+  agentId: text('agent_id'),
+  anthropicBatchId: text('anthropic_batch_id').notNull(),
+  status: text('status').notNull().default('submitted'), // submitted|processing|ended|cancelled|errored
+  inputCount: integer('input_count').default(0),
+  completedCount: integer('completed_count').default(0),
+  costUsd: real('cost_usd').default(0),
+  savedCostUsd: real('saved_cost_usd').default(0),
+  resultsJson: text('results_json'),
+  createdAt: text('created_at').default(sql`(datetime('now'))`),
+  completedAt: text('completed_at'),
+})
+
+// ─── Eval Suites ──────────────────────────────────────────────────────────────
+
+export const evalSuites = sqliteTable('eval_suites', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  description: text('description').default(''),
+  agentId: text('agent_id'),
+  cases: text('cases').notNull().default('[]'), // JSON: [{id, input, expectedOutput, criteria, scoreMethod}]
+  createdAt: text('created_at').default(sql`(datetime('now'))`),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`),
+})
+
+// ─── Eval Runs ────────────────────────────────────────────────────────────────
+
+export const evalRuns = sqliteTable('eval_runs', {
+  id: text('id').primaryKey(),
+  suiteId: text('suite_id').notNull(),
+  agentId: text('agent_id').notNull(),
+  status: text('status').notNull().default('pending'), // pending|running|completed|failed
+  averageScore: real('average_score'),
+  caseResults: text('case_results').default('[]'), // JSON: [{caseId, input, output, score, rationale}]
+  usedBatch: integer('used_batch', { mode: 'boolean' }).default(false),
+  costUsd: real('cost_usd').default(0),
+  createdAt: text('created_at').default(sql`(datetime('now'))`),
+  completedAt: text('completed_at'),
 })

@@ -60,12 +60,19 @@ analyticsRouter.get('/costs', async (req, res) => {
     SELECT
       COALESCE(SUM(cost_usd), 0) as total_cost,
       COALESCE(SUM(input_tokens + output_tokens), 0) as total_tokens,
-      COUNT(*) as total_requests
+      COUNT(*) as total_requests,
+      COALESCE(SUM(cache_read_tokens), 0) as cache_read_tokens,
+      COALESCE(SUM(cache_creation_tokens), 0) as cache_creation_tokens
     FROM usage_events
     WHERE created_at >= datetime('now', ${interval})
-  `)) as [{ total_cost: number; total_tokens: number; total_requests: number }]
+  `)) as [{ total_cost: number; total_tokens: number; total_requests: number; cache_read_tokens: number; cache_creation_tokens: number }]
 
-  const totals = totalsRow ?? { total_cost: 0, total_tokens: 0, total_requests: 0 }
+  const raw = totalsRow ?? { total_cost: 0, total_tokens: 0, total_requests: 0, cache_read_tokens: 0, cache_creation_tokens: 0 }
+  // Estimate cache savings: cache reads cost ~10% of normal input tokens
+  // We compare what it would have cost without caching vs actual cost
+  const avgInputCostPerToken = raw.total_tokens > 0 ? raw.total_cost / raw.total_tokens : 0
+  const cacheSavingsUsd = raw.cache_read_tokens * avgInputCostPerToken * 0.9
+  const totals = { ...raw, cache_savings_usd: cacheSavingsUsd }
 
   ok(res, { byModel, byDay, totals, days })
 })

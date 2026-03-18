@@ -18,6 +18,13 @@ import { promptsRouter } from './routes/prompts.js'
 import { conversationsRouter } from './routes/conversations.js'
 import { compareRouter } from './routes/compare.js'
 import { occupationsRouter } from './routes/occupations.js'
+import { visionRouter } from './routes/vision.js'
+import { schedulesRouter } from './routes/schedules.js'
+import { batchesRouter, pollBatchStatus } from './routes/batches.js'
+import { evalsRouter } from './routes/evals.js'
+import { scheduleEngine } from './services/scheduleEngine.js'
+import { db, schema } from './db/index.js'
+import { inArray } from 'drizzle-orm'
 import { errorHandler, notFound, ok } from './middleware/response.js'
 import { authMiddleware } from './middleware/auth.js'
 
@@ -94,6 +101,10 @@ app.use('/api/prompts', generalLimiter, promptsRouter)
 app.use('/api/conversations', generalLimiter, conversationsRouter)
 app.use('/api/compare', claudeLimiter, compareRouter)          // Calls Claude API
 app.use('/api/occupations', generalLimiter, occupationsRouter)
+app.use('/api/vision', claudeLimiter, visionRouter)
+app.use('/api/schedules', generalLimiter, schedulesRouter)
+app.use('/api/batches', claudeLimiter, batchesRouter)
+app.use('/api/evals', claudeLimiter, evalsRouter)
 
 // ─── Serve web dashboard (production) ────────────────────────────────────────
 if (serveWeb) {
@@ -132,6 +143,26 @@ if (!isServerless) {
       console.error('[DB] Failed to initialise database — continuing without persistence:', err)
     })
     .then(() => {
+      // Start schedule engine (fire-and-forget)
+      scheduleEngine.start().catch((err) => {
+        console.error('[ScheduleEngine] Failed to start:', err)
+      })
+
+      // Start batch polling loop (every 5 minutes)
+      const BATCH_POLL_INTERVAL = 5 * 60 * 1000
+      setInterval(async () => {
+        try {
+          const inFlightJobs = await db.select().from(schema.batchJobs)
+            .where(inArray(schema.batchJobs.status, ['submitted', 'processing']))
+          for (const job of inFlightJobs) {
+            await pollBatchStatus(job.id)
+          }
+        } catch (err) {
+          console.error('[BatchPoller] Error:', err)
+        }
+      }, BATCH_POLL_INTERVAL)
+    })
+    .then((_v: unknown) => {
       app.listen(PORT, () => {
         console.log(`
 ╔═══════════════════════════════════════╗

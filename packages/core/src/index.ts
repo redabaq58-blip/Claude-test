@@ -1,6 +1,6 @@
 export { ClaudeClient } from './client.js'
 export type { ClaudeClientOptions, RunOptions } from './client.js'
-export { MODELS, selectModel, calculateCost, getTier, resolveModel } from './models.js'
+export { MODELS, selectModel, calculateCost, calculateCostWithCache, getTier, resolveModel } from './models.js'
 export { collectStream, pipeStreamToStdout, streamToSSE } from './streaming.js'
 export {
   ClaudeForgeError,
@@ -17,4 +17,12 @@ export type {
   UsageStats,
   ClaudeResponse,
   ApiResponse,
+  TokenCountEstimate,
+  BatchRequest,
+  BatchJobResponse,
+  BatchJobStatus,
+  BatchResultItem,
+  ImageContentBlock,
+  TextContentBlock,
+  ContentBlock,
 } from './types.js'

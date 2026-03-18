@@ -95,7 +95,7 @@ export default function Analytics() {
       )}
 
       {/* Summary cards */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-4 gap-4 mb-8">
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
           <div className="text-gray-400 text-sm mb-1">Total Cost</div>
           <div className="text-2xl font-bold text-white">
@@ -116,6 +116,15 @@ export default function Analytics() {
             {loading ? '…' : (costs?.totals?.total_requests ?? totalRuns).toLocaleString()}
           </div>
           <div className="text-gray-500 text-xs mt-1">Agent runs</div>
+        </div>
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 border-l-2 border-l-emerald-600">
+          <div className="text-emerald-400 text-sm mb-1">Cache Savings</div>
+          <div className="text-2xl font-bold text-white">
+            {loading ? '…' : `$${((costs?.totals as Record<string, number> | undefined)?.cache_savings_usd ?? 0).toFixed(4)}`}
+          </div>
+          <div className="text-gray-500 text-xs mt-1">
+            {loading ? '' : `${((costs?.totals as Record<string, number> | undefined)?.cache_read_tokens ?? 0).toLocaleString()} cache hits`}
+          </div>
         </div>
       </div>
 

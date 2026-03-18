@@ -70,6 +70,10 @@ streamRouter.post('/:id/stream', async (req: Request, res: Response) => {
         model,
         systemPrompt: agentRow.systemPrompt ?? '',
         maxTokens: agentRow.maxTokens ?? 8192,
+        cachingEnabled: agentRow.cacheEnabled ?? false,
+        ...(agentRow.thinkingEnabled && {
+          thinking: { type: 'enabled' as const, budget_tokens: agentRow.thinkingBudget ?? 8000 }
+        }),
       }
     )
 
@@ -77,6 +81,9 @@ streamRouter.post('/:id/stream', async (req: Request, res: Response) => {
       if (chunk.type === 'text' && chunk.text) {
         fullText += chunk.text
         res.write(`data: ${JSON.stringify({ type: 'text', text: chunk.text })}\n\n`)
+      }
+      if (chunk.type === 'thinking' && chunk.thinking) {
+        res.write(`data: ${JSON.stringify({ type: 'thinking', thinking: chunk.thinking })}\n\n`)
       }
       if (chunk.type === 'done') break
     }

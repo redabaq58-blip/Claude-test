@@ -44,6 +44,7 @@ export default function AgentStudio() {
 
   const [form, setForm] = useState({
     name: '', description: '', model: 'auto', systemPrompt: '',
+    cacheEnabled: false, thinkingEnabled: false, thinkingBudget: 8000,
   })
 
   const load = () => agentsApi.list().then(setAgents).finally(() => setLoading(false))
@@ -58,13 +59,18 @@ export default function AgentStudio() {
 
   const openCreate = () => {
     setEditAgent(null)
-    setForm({ name: '', description: '', model: 'auto', systemPrompt: '' })
+    setForm({ name: '', description: '', model: 'auto', systemPrompt: '', cacheEnabled: false, thinkingEnabled: false, thinkingBudget: 8000 })
     setShowForm(true)
   }
 
   const openEdit = (agent: Agent) => {
     setEditAgent(agent)
-    setForm({ name: agent.name, description: agent.description, model: agent.model, systemPrompt: agent.systemPrompt })
+    setForm({
+      name: agent.name, description: agent.description, model: agent.model, systemPrompt: agent.systemPrompt,
+      cacheEnabled: (agent as { cacheEnabled?: boolean }).cacheEnabled ?? false,
+      thinkingEnabled: (agent as { thinkingEnabled?: boolean }).thinkingEnabled ?? false,
+      thinkingBudget: (agent as { thinkingBudget?: number }).thinkingBudget ?? 8000,
+    })
     setShowForm(true)
     setMenuOpen(null)
   }
@@ -230,6 +236,52 @@ export default function AgentStudio() {
                   placeholder="You are a helpful assistant specialized in…"
                 />
                 <div className="text-xs text-gray-600 text-right mt-1">{form.systemPrompt.length} chars</div>
+              </div>
+
+              {/* Feature flags */}
+              <div className="space-y-3 pt-2 border-t border-gray-800">
+                <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">Advanced Features</div>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.cacheEnabled}
+                    onChange={(e) => setForm({ ...form, cacheEnabled: e.target.checked })}
+                    className="w-4 h-4 rounded border-gray-600 bg-gray-800 text-brand-500"
+                  />
+                  <div>
+                    <div className="text-white text-sm">Prompt Caching</div>
+                    <div className="text-gray-500 text-xs">Cache system prompt for up to 90% cost reduction on repeat calls</div>
+                  </div>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.thinkingEnabled}
+                    onChange={(e) => setForm({ ...form, thinkingEnabled: e.target.checked })}
+                    className="w-4 h-4 rounded border-gray-600 bg-gray-800 text-brand-500"
+                  />
+                  <div>
+                    <div className="text-white text-sm">Extended Thinking</div>
+                    <div className="text-gray-500 text-xs">Enable Claude's reasoning chain — visible in Chat as amber panel (Opus only)</div>
+                  </div>
+                </label>
+                {form.thinkingEnabled && (
+                  <div className="ml-7">
+                    <label className="text-gray-400 text-xs mb-1 block">Thinking Budget (tokens): {form.thinkingBudget.toLocaleString()}</label>
+                    <input
+                      type="range"
+                      min={1024}
+                      max={32000}
+                      step={1024}
+                      value={form.thinkingBudget}
+                      onChange={(e) => setForm({ ...form, thinkingBudget: parseInt(e.target.value) })}
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-xs text-gray-600 mt-0.5">
+                      <span>1K</span><span>32K</span>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex gap-3 mt-6 justify-end">

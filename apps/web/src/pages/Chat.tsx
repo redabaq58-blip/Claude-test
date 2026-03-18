@@ -4,6 +4,8 @@ import { agentsApi, conversationsApi } from '../api'
 import type { Agent, Conversation, ConversationMessage } from '../api'
 import MarkdownRenderer from '../components/MarkdownRenderer'
 
+const API_BASE = '/api'
+
 const MODEL_BADGE: Record<string, string> = {
   'claude-opus-4-6': 'bg-purple-950 text-purple-400 border-purple-800',
   'claude-sonnet-4-6': 'bg-green-950 text-green-400 border-green-800',
@@ -34,11 +36,18 @@ export default function Chat() {
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
   const [streamBuffer, setStreamBuffer] = useState('')
+  const [thinkingBuffer, setThinkingBuffer] = useState('')
+  const [thinkingOpen, setThinkingOpen] = useState(false)
   const [loadingConv, setLoadingConv] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [costEstimate, setCostEstimate] = useState<{ inputTokens: number; estimatedCostUsd: number; withinBudget: boolean } | null>(null)
+  const [estimating, setEstimating] = useState(false)
+  const [attachedImage, setAttachedImage] = useState<{ base64: string; mimeType: string; preview: string } | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const abortRef = useRef(false)
+  const estimateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Load agents + conversations
   useEffect(() => {
@@ -76,7 +85,43 @@ export default function Chat() {
     setActiveConv(null)
     setMessages([])
     setStreamBuffer('')
+    setThinkingBuffer('')
+    setCostEstimate(null)
+    setAttachedImage(null)
     inputRef.current?.focus()
+  }
+
+  // Debounced cost estimate
+  const requestEstimate = useCallback((text: string) => {
+    if (estimateTimerRef.current) clearTimeout(estimateTimerRef.current)
+    if (!text.trim() || !selectedAgent) { setCostEstimate(null); return }
+    estimateTimerRef.current = setTimeout(async () => {
+      setEstimating(true)
+      try {
+        const res = await fetch(`${API_BASE}/agents/${selectedAgent.id}/estimate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ input: text }),
+        })
+        if (res.ok) {
+          const json = await res.json() as { data: { inputTokens: number; estimatedCostUsd: number; withinBudget: boolean } }
+          setCostEstimate(json.data)
+        }
+      } catch { /* non-critical */ } finally {
+        setEstimating(false)
+      }
+    }, 500)
+  }, [selectedAgent])
+
+  // Handle image file attachment
+  const handleImageAttach = (file: File) => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string
+      const base64 = dataUrl.split(',')[1] ?? ''
+      setAttachedImage({ base64, mimeType: file.type, preview: dataUrl })
+    }
+    reader.readAsDataURL(file)
   }
 
   const sendMessage = async () => {
@@ -95,6 +140,10 @@ export default function Chat() {
     setMessages((m) => [...m, userMsg])
     setStreaming(true)
     setStreamBuffer('')
+    setThinkingBuffer('')
+    setThinkingOpen(false)
+    setCostEstimate(null)
+    setAttachedImage(null)
 
     try {
       let convId = activeConv?.id
@@ -130,7 +179,10 @@ export default function Chat() {
           if (!line.startsWith('data: ')) continue
           try {
             const chunk = JSON.parse(line.slice(6))
-            if (chunk.type === 'text') {
+            if (chunk.type === 'thinking') {
+              setThinkingBuffer((s) => s + chunk.thinking)
+              setThinkingOpen(true)
+            } else if (chunk.type === 'text') {
               setStreamBuffer((s) => s + chunk.text)
             } else if (chunk.type === 'done') {
               assistantMsg = chunk.message
@@ -321,19 +373,39 @@ export default function Chat() {
                   <div className="w-8 h-8 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center text-xs font-bold text-gray-400 flex-shrink-0">
                     C
                   </div>
-                  <div className="bg-gray-900 border border-gray-800 px-4 py-3 rounded-2xl rounded-tl-sm max-w-[75%]">
-                    {streamBuffer ? (
-                      <MarkdownRenderer content={streamBuffer} />
-                    ) : (
-                      <div className="flex gap-1 py-1">
-                        <span className="w-2 h-2 bg-gray-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                        <span className="w-2 h-2 bg-gray-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                        <span className="w-2 h-2 bg-gray-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  <div className="max-w-[75%] flex flex-col gap-2">
+                    {/* Thinking panel */}
+                    {thinkingBuffer && (
+                      <div className="bg-amber-950 border border-amber-800 rounded-xl overflow-hidden">
+                        <button
+                          onClick={() => setThinkingOpen((o) => !o)}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-amber-400 text-xs font-medium hover:bg-amber-900 transition-colors"
+                        >
+                          <span>{thinkingOpen ? '▾' : '▸'}</span>
+                          Claude's Reasoning
+                          <span className="ml-auto text-amber-600">{thinkingBuffer.length} chars</span>
+                        </button>
+                        {thinkingOpen && (
+                          <div className="px-3 pb-3 text-amber-300 text-xs leading-relaxed whitespace-pre-wrap max-h-48 overflow-y-auto">
+                            {thinkingBuffer}
+                          </div>
+                        )}
                       </div>
                     )}
-                    {streamBuffer && (
-                      <span className="inline-block w-1.5 h-4 bg-brand-500 animate-pulse ml-0.5 align-text-bottom" />
-                    )}
+                    <div className="bg-gray-900 border border-gray-800 px-4 py-3 rounded-2xl rounded-tl-sm">
+                      {streamBuffer ? (
+                        <MarkdownRenderer content={streamBuffer} />
+                      ) : (
+                        <div className="flex gap-1 py-1">
+                          <span className="w-2 h-2 bg-gray-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                          <span className="w-2 h-2 bg-gray-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                          <span className="w-2 h-2 bg-gray-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                        </div>
+                      )}
+                      {streamBuffer && (
+                        <span className="inline-block w-1.5 h-4 bg-brand-500 animate-pulse ml-0.5 align-text-bottom" />
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
@@ -344,11 +416,39 @@ export default function Chat() {
 
         {/* Input area */}
         <div className="px-6 py-4 border-t border-gray-800 bg-gray-950">
+          {/* Image preview */}
+          {attachedImage && (
+            <div className="mb-2 flex items-center gap-2">
+              <img src={attachedImage.preview} alt="attachment" className="h-12 w-12 rounded object-cover border border-gray-700" />
+              <span className="text-xs text-gray-400">Image attached</span>
+              <button onClick={() => setAttachedImage(null)} className="text-xs text-red-400 hover:text-red-300 ml-1">× remove</button>
+            </div>
+          )}
           <div className="flex gap-3 items-end">
+            {/* Image attach button */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/gif,image/webp"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) handleImageAttach(file)
+                e.target.value = ''
+              }}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={!selectedAgent || streaming}
+              title="Attach image"
+              className="px-3 py-3 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white text-sm transition-colors disabled:opacity-40 flex-shrink-0"
+            >
+              📎
+            </button>
             <textarea
               ref={inputRef}
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={(e) => { setInput(e.target.value); requestEstimate(e.target.value) }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault()
@@ -370,18 +470,29 @@ export default function Chat() {
               onClick={() => {
                 if (streaming) { abortRef.current = true } else { sendMessage() }
               }}
-              disabled={!selectedAgent || (!input.trim() && !streaming)}
+              disabled={!selectedAgent || (!input.trim() && !attachedImage && !streaming)}
               className={`px-4 py-3 rounded-xl text-white text-sm font-medium transition-colors disabled:opacity-40 flex-shrink-0 ${
                 streaming
                   ? 'bg-red-700 hover:bg-red-800'
+                  : costEstimate && !costEstimate.withinBudget
+                  ? 'bg-amber-600 hover:bg-amber-700'
                   : 'bg-brand-600 hover:bg-brand-700'
               }`}
             >
               {streaming ? '■' : '↑'}
             </button>
           </div>
-          <div className="text-xs text-gray-600 mt-2 text-center">
-            Conversations are saved automatically · {conversations.length} conversation{conversations.length !== 1 ? 's' : ''} in history
+          <div className="text-xs mt-2 flex justify-between items-center">
+            <span className="text-gray-600">
+              Conversations are saved automatically · {conversations.length} conversation{conversations.length !== 1 ? 's' : ''} in history
+            </span>
+            {estimating && <span className="text-gray-600 animate-pulse">Estimating…</span>}
+            {costEstimate && !estimating && (
+              <span className={`font-mono ${costEstimate.withinBudget ? 'text-gray-500' : 'text-amber-400'}`}>
+                ~{costEstimate.inputTokens.toLocaleString()} tokens · ${costEstimate.estimatedCostUsd.toFixed(5)}
+                {!costEstimate.withinBudget && ' ⚠ over budget'}
+              </span>
+            )}
           </div>
         </div>
       </div>

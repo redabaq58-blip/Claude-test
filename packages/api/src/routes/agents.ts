@@ -5,6 +5,7 @@ import { db, schema } from '../db/index.js'
 import { ok, fail } from '../middleware/response.js'
 import { ClaudeAgent } from '@claudeforge/agents'
 import { MCPRegistry } from '@claudeforge/mcp'
+import { ClaudeClient, calculateCost } from '@claudeforge/core'
 import type { ClaudeModel } from '@claudeforge/core'
 
 export const agentsRouter = Router()
@@ -24,7 +25,7 @@ agentsRouter.get('/:id', async (req, res) => {
 
 // POST /api/agents — create agent
 agentsRouter.post('/', async (req, res) => {
-  const { name, description, model, systemPrompt, maxTokens, temperature } = req.body
+  const { name, description, model, systemPrompt, maxTokens, temperature, cacheEnabled, thinkingEnabled, thinkingBudget } = req.body
   if (!name) return fail(res, 'name is required')
 
   const agent = {
@@ -35,6 +36,9 @@ agentsRouter.post('/', async (req, res) => {
     systemPrompt: systemPrompt ?? '',
     maxTokens: maxTokens ?? 8192,
     temperature: temperature ?? 1.0,
+    cacheEnabled: cacheEnabled ?? false,
+    thinkingEnabled: thinkingEnabled ?? false,
+    thinkingBudget: thinkingBudget ?? 8000,
   }
 
   await db.insert(schema.agents).values(agent)
@@ -47,7 +51,7 @@ agentsRouter.put('/:id', async (req, res) => {
   const [existing] = await db.select().from(schema.agents).where(eq(schema.agents.id, req.params.id))
   if (!existing) return fail(res, 'Agent not found', 404)
 
-  const { name, description, model, systemPrompt, maxTokens, temperature, isActive } = req.body
+  const { name, description, model, systemPrompt, maxTokens, temperature, isActive, cacheEnabled, thinkingEnabled, thinkingBudget } = req.body
   await db
     .update(schema.agents)
     .set({
@@ -58,6 +62,9 @@ agentsRouter.put('/:id', async (req, res) => {
       ...(maxTokens !== undefined && { maxTokens }),
       ...(temperature !== undefined && { temperature }),
       ...(isActive !== undefined && { isActive }),
+      ...(cacheEnabled !== undefined && { cacheEnabled }),
+      ...(thinkingEnabled !== undefined && { thinkingEnabled }),
+      ...(thinkingBudget !== undefined && { thinkingBudget }),
       updatedAt: new Date().toISOString(),
     })
     .where(eq(schema.agents.id, req.params.id))
@@ -72,6 +79,30 @@ agentsRouter.delete('/:id', async (req, res) => {
   if (!existing) return fail(res, 'Agent not found', 404)
   await db.delete(schema.agents).where(eq(schema.agents.id, req.params.id))
   ok(res, { deleted: true, id: req.params.id })
+})
+
+// POST /api/agents/:id/estimate — pre-flight token count + cost estimate
+agentsRouter.post('/:id/estimate', async (req, res) => {
+  const [agentRow] = await db.select().from(schema.agents).where(eq(schema.agents.id, req.params.id))
+  if (!agentRow) return fail(res, 'Agent not found', 404)
+
+  const { input } = req.body
+  if (!input || typeof input !== 'string') return fail(res, 'input is required')
+
+  try {
+    const client = new ClaudeClient()
+    const model = (agentRow.model ?? 'auto') as ClaudeModel | 'auto'
+    const messages = [{ role: 'user' as const, content: input }]
+    const inputTokens = await client.countTokens(messages, {
+      model,
+      systemPrompt: agentRow.systemPrompt ?? '',
+    })
+    const estimatedCostUsd = calculateCost(model === 'auto' ? 'claude-sonnet-4-6' : model, inputTokens, 0)
+    const budgetUsd = parseFloat(process.env.COST_LIMIT_PER_RUN ?? '1.0')
+    ok(res, { inputTokens, estimatedCostUsd, withinBudget: estimatedCostUsd <= budgetUsd })
+  } catch (err) {
+    fail(res, err instanceof Error ? err.message : 'Estimation failed', 500)
+  }
 })
 
 // POST /api/agents/:id/run — run agent with input
@@ -120,6 +151,9 @@ agentsRouter.post('/:id/run', async (req, res) => {
       tools,
       maxTokens: agentRow.maxTokens ?? 8192,
       logUsage: false,
+      cacheSystemPrompt: agentRow.cacheEnabled ?? false,
+      thinkingEnabled: agentRow.thinkingEnabled ?? false,
+      thinkingBudget: agentRow.thinkingBudget ?? 8000,
     })
 
     const result = await agent.run(input)
@@ -136,6 +170,9 @@ agentsRouter.post('/:id/run', async (req, res) => {
         costUsd: result.usage.costUsd,
         durationMs: result.usage.durationMs,
         model: result.usage.model,
+        thinkingContent: result.thinkingContent ?? null,
+        cacheReadTokens: result.usage.cacheReadTokens ?? 0,
+        cacheCreationTokens: result.usage.cacheCreationTokens ?? 0,
         completedAt: new Date().toISOString(),
       })
       .where(eq(schema.agentRuns.id, runId))
@@ -148,6 +185,8 @@ agentsRouter.post('/:id/run', async (req, res) => {
       inputTokens: result.usage.inputTokens,
       outputTokens: result.usage.outputTokens,
       costUsd: result.usage.costUsd,
+      cacheReadTokens: result.usage.cacheReadTokens ?? 0,
+      cacheCreationTokens: result.usage.cacheCreationTokens ?? 0,
     })
 
     const [run] = await db.select().from(schema.agentRuns).where(eq(schema.agentRuns.id, runId))

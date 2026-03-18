@@ -102,10 +102,11 @@ workflowsRouter.post('/:id/run', async (req, res) => {
         throw new Error(`Workflow step ${i + 1}: Agent "${step.agentId}" not found`)
       }
 
-      // Interpolate input template with current context
+      // Interpolate input template with current context (replaceAll so every
+      // occurrence of a key is substituted, not just the first one)
       let input = step.inputTemplate
       for (const [key, value] of Object.entries(runContext)) {
-        input = input.replace(`{{${key}}}`, String(value))
+        input = input.replaceAll(`{{${key}}}`, String(value))
       }
 
       const agent = new ClaudeAgent({

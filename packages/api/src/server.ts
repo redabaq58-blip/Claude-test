@@ -19,6 +19,7 @@ import { conversationsRouter } from './routes/conversations.js'
 import { compareRouter } from './routes/compare.js'
 import { occupationsRouter } from './routes/occupations.js'
 import { errorHandler, notFound } from './middleware/response.js'
+import { authMiddleware } from './middleware/auth.js'
 
 const app = express()
 const PORT = process.env.PORT ?? 3000
@@ -71,6 +72,13 @@ app.get('/health', (_req, res) => {
     timestamp: new Date().toISOString(),
   })
 })
+
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+// When API_SECRET env var is set, all /api/* routes require:
+//   Authorization: Bearer <API_SECRET>
+// Without API_SECRET the server runs in open/local mode.
+
+app.use('/api', authMiddleware)
 
 // ─── API Routes ───────────────────────────────────────────────────────────────
 

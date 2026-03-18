@@ -36,11 +36,12 @@ streamRouter.post('/:id/stream', async (req: Request, res: Response) => {
     return
   }
 
-  // Set SSE headers
+  // Set SSE headers — honour the same CORS_ORIGIN policy as the main server
   res.setHeader('Content-Type', 'text/event-stream')
   res.setHeader('Cache-Control', 'no-cache')
   res.setHeader('Connection', 'keep-alive')
-  res.setHeader('Access-Control-Allow-Origin', '*')
+  const corsOrigin = process.env.CORS_ORIGIN ?? (process.env.NODE_ENV === 'production' ? null : '*')
+  if (corsOrigin) res.setHeader('Access-Control-Allow-Origin', corsOrigin)
   res.flushHeaders()
 
   const runId = uuidv4()

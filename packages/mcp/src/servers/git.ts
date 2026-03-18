@@ -1,4 +1,4 @@
-import { execSync } from 'child_process'
+import { execSync, spawnSync } from 'child_process'
 import type { Tool } from '@claudeforge/core'
 
 // ─── Git MCP Server ───────────────────────────────────────────────────────────
@@ -148,8 +148,16 @@ export function createGitTools(options: GitServerOptions = {}): Tool[] {
           },
         },
         handler: async ({ files }) => {
-          const fileList = (files as string[]).join(' ')
-          return git(`add ${fileList}`)
+          // Use spawnSync with args array to prevent shell injection via filenames
+          const result = spawnSync('git', ['add', '--', ...(files as string[])], {
+            cwd: repoPath,
+            encoding: 'utf-8',
+            stdio: ['pipe', 'pipe', 'pipe'],
+          })
+          if (result.status !== 0) {
+            throw new Error(`git add failed: ${result.stderr?.trim() ?? 'Unknown error'}`)
+          }
+          return result.stdout?.trim() ?? 'Files staged'
         },
       },
       {
@@ -164,7 +172,18 @@ export function createGitTools(options: GitServerOptions = {}): Tool[] {
             required: ['message'],
           },
         },
-        handler: async ({ message }) => git(`commit -m "${(message as string).replace(/"/g, '\\"')}"`),
+        handler: async ({ message }) => {
+          // Use spawnSync with args array to prevent shell injection
+          const result = spawnSync('git', ['commit', '-m', String(message)], {
+            cwd: repoPath,
+            encoding: 'utf-8',
+            stdio: ['pipe', 'pipe', 'pipe'],
+          })
+          if (result.status !== 0) {
+            throw new Error(`git commit failed: ${result.stderr?.trim() ?? 'Unknown error'}`)
+          }
+          return result.stdout?.trim() ?? ''
+        },
       }
     )
   }

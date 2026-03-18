@@ -1,11 +1,6 @@
 # ── Build stage ──────────────────────────────────────────────────────────────
 FROM node:22-slim AS builder
 
-# Install Python + build tools needed for better-sqlite3 native compilation
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 make g++ \
-  && rm -rf /var/lib/apt/lists/*
-
 WORKDIR /app
 
 # Copy manifests first for layer caching
@@ -19,16 +14,12 @@ COPY apps/web/package*.json ./apps/web/
 
 RUN npm install
 
-# Copy source and build everything
+# Copy source and build everything (TypeScript + React)
 COPY . .
 RUN npm run build
 
 # ── Runtime stage ─────────────────────────────────────────────────────────────
 FROM node:22-slim AS runtime
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 make g++ \
-  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -50,7 +41,11 @@ COPY --from=builder /app/packages/mcp/dist ./packages/mcp/dist
 COPY --from=builder /app/packages/api/dist ./packages/api/dist
 COPY --from=builder /app/apps/web/dist ./apps/web/dist
 
-# Persistent data directory (use Railway Volumes for persistence)
+# Copy static asset directories served by the API at runtime
+COPY --from=builder /app/prompts ./prompts
+COPY --from=builder /app/skills ./skills
+
+# Persistent data directory (use Railway Volumes / Docker volumes for persistence)
 RUN mkdir -p /app/data
 
 ENV NODE_ENV=production

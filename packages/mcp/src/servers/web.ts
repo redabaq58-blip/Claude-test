@@ -9,6 +9,45 @@ export interface WebServerOptions {
   userAgent?: string
 }
 
+// SSRF protection — block requests to private/internal network ranges and
+// cloud metadata endpoints that agents must never be able to reach.
+const BLOCKED_HOSTNAME_RE =
+  /^(localhost|.*\.local|.*\.internal)$/i
+
+const BLOCKED_IP_RE =
+  /^(127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|169\.254\.|::1$|fc00:|fd)/
+
+const CLOUD_METADATA_HOSTS = new Set([
+  '169.254.169.254',   // AWS / GCP / Azure IMDS
+  'metadata.google.internal',
+  'metadata.azure.internal',
+])
+
+function assertSafeUrl(rawUrl: string): URL {
+  let parsed: URL
+  try {
+    parsed = new URL(rawUrl)
+  } catch {
+    throw new Error(`Invalid URL: ${rawUrl}`)
+  }
+
+  const { protocol, hostname } = parsed
+
+  if (protocol !== 'http:' && protocol !== 'https:') {
+    throw new Error(`Blocked URL scheme: ${protocol} (only http/https allowed)`)
+  }
+
+  if (CLOUD_METADATA_HOSTS.has(hostname)) {
+    throw new Error(`Blocked: cloud metadata endpoint (${hostname})`)
+  }
+
+  if (BLOCKED_HOSTNAME_RE.test(hostname) || BLOCKED_IP_RE.test(hostname)) {
+    throw new Error(`Blocked: private/internal address (${hostname})`)
+  }
+
+  return parsed
+}
+
 export function createWebTools(options: WebServerOptions = {}): Tool[] {
   const maxResponseSize = options.maxResponseSize ?? 512_000
   const timeoutMs = options.timeoutMs ?? 10_000
@@ -41,6 +80,8 @@ export function createWebTools(options: WebServerOptions = {}): Tool[] {
         },
       },
       handler: async ({ url, method = 'GET', headers = {}, body }) => {
+        assertSafeUrl(url as string)
+
         const controller = new AbortController()
         const timeout = setTimeout(() => controller.abort(), timeoutMs)
 
@@ -89,6 +130,8 @@ export function createWebTools(options: WebServerOptions = {}): Tool[] {
         },
       },
       handler: async ({ url }) => {
+        assertSafeUrl(url as string)
+
         const response = await fetch(url as string, {
           headers: { 'User-Agent': userAgent },
         })
@@ -127,6 +170,8 @@ export function createWebTools(options: WebServerOptions = {}): Tool[] {
         },
       },
       handler: async ({ url }) => {
+        assertSafeUrl(url as string)
+
         try {
           const controller = new AbortController()
           const timeout = setTimeout(() => controller.abort(), 5000)

@@ -1,4 +1,4 @@
-import { execSync, spawnSync } from 'child_process'
+import { spawnSync } from 'child_process'
 import type { Tool } from '@claudeforge/core'
 
 // ─── Git MCP Server ───────────────────────────────────────────────────────────
@@ -13,19 +13,20 @@ export function createGitTools(options: GitServerOptions = {}): Tool[] {
   const repoPath = options.repoPath ?? process.cwd()
   const readonly = options.readonly ?? false
 
-  function git(command: string): string {
-    try {
-      return execSync(`git ${command}`, {
-        cwd: repoPath,
-        encoding: 'utf-8',
-        stdio: ['pipe', 'pipe', 'pipe'],
-      }).trim()
-    } catch (err: unknown) {
-      const error = err as { stderr?: Buffer; message?: string }
+  // All git calls use spawnSync with an explicit args array — never string
+  // interpolation — to prevent command injection via user-controlled values.
+  function git(args: string[]): string {
+    const result = spawnSync('git', args, {
+      cwd: repoPath,
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    })
+    if (result.status !== 0) {
       throw new Error(
-        `git ${command.split(' ')[0]} failed: ${error.stderr?.toString().trim() ?? error.message ?? 'Unknown error'}`
+        `git ${args[0]} failed: ${result.stderr?.trim() ?? 'Unknown error'}`
       )
     }
+    return result.stdout?.trim() ?? ''
   }
 
   const tools: Tool[] = [
@@ -35,7 +36,7 @@ export function createGitTools(options: GitServerOptions = {}): Tool[] {
         description: 'Show the working tree status',
         input_schema: { type: 'object', properties: {}, required: [] },
       },
-      handler: async () => git('status'),
+      handler: async () => git(['status']),
     },
 
     {
@@ -52,8 +53,10 @@ export function createGitTools(options: GitServerOptions = {}): Tool[] {
         },
       },
       handler: async ({ n = 10, oneline = true }) => {
-        const format = oneline ? '--oneline' : '--format="%h %an %ad %s" --date=short'
-        return git(`log ${format} -${n}`)
+        const formatArgs = oneline
+          ? ['--oneline']
+          : ['--format=%h %an %ad %s', '--date=short']
+        return git(['log', ...formatArgs, `-${Math.min(Number(n), 200)}`])
       },
     },
 
@@ -73,12 +76,12 @@ export function createGitTools(options: GitServerOptions = {}): Tool[] {
         },
       },
       handler: async ({ from, to, staged = false, file }) => {
-        let cmd = 'diff'
-        if (staged) cmd += ' --staged'
-        if (from) cmd += ` ${from}`
-        if (to) cmd += ` ${to}`
-        if (file) cmd += ` -- ${file}`
-        return git(cmd) || 'No changes'
+        const args = ['diff']
+        if (staged) args.push('--staged')
+        if (from) args.push(String(from))
+        if (to) args.push(String(to))
+        if (file) { args.push('--'); args.push(String(file)) }
+        return git(args) || 'No changes'
       },
     },
 
@@ -94,7 +97,7 @@ export function createGitTools(options: GitServerOptions = {}): Tool[] {
           required: [],
         },
       },
-      handler: async ({ all = false }) => git(`branch${all ? ' -a' : ''}`),
+      handler: async ({ all = false }) => git(all ? ['branch', '-a'] : ['branch']),
     },
 
     {
@@ -109,7 +112,7 @@ export function createGitTools(options: GitServerOptions = {}): Tool[] {
           required: [],
         },
       },
-      handler: async ({ ref = 'HEAD' }) => git(`show ${ref} --stat`),
+      handler: async ({ ref = 'HEAD' }) => git(['show', String(ref), '--stat']),
     },
 
     {
@@ -124,7 +127,7 @@ export function createGitTools(options: GitServerOptions = {}): Tool[] {
           required: ['file'],
         },
       },
-      handler: async ({ file }) => git(`blame ${file} --date=short`),
+      handler: async ({ file }) => git(['blame', String(file), '--date=short']),
     },
   ]
 
@@ -148,7 +151,6 @@ export function createGitTools(options: GitServerOptions = {}): Tool[] {
           },
         },
         handler: async ({ files }) => {
-          // Use spawnSync with args array to prevent shell injection via filenames
           const result = spawnSync('git', ['add', '--', ...(files as string[])], {
             cwd: repoPath,
             encoding: 'utf-8',
@@ -173,7 +175,6 @@ export function createGitTools(options: GitServerOptions = {}): Tool[] {
           },
         },
         handler: async ({ message }) => {
-          // Use spawnSync with args array to prevent shell injection
           const result = spawnSync('git', ['commit', '-m', String(message)], {
             cwd: repoPath,
             encoding: 'utf-8',

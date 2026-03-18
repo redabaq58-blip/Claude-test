@@ -2,6 +2,7 @@
   "name": "claude-forge",
   "version": "1.0.0",
   "description": "The ultimate Claude/Anthropic agent platform — agents, MCP, skills, hooks, and workflows in one place",
+  "license": "MIT",
   "private": true,
   "workspaces": [
     "packages/*",

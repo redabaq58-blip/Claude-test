@@ -12,7 +12,7 @@ COPY packages/api/package*.json ./packages/api/
 COPY packages/cli/package*.json ./packages/cli/
 COPY apps/web/package*.json ./apps/web/
 
-RUN npm install
+RUN npm ci
 
 # Copy source and build everything (TypeScript + React)
 COPY . .
@@ -20,6 +20,9 @@ RUN npm run build
 
 # ── Runtime stage ─────────────────────────────────────────────────────────────
 FROM node:22-slim AS runtime
+
+# Run as non-root for security
+RUN addgroup --system app && adduser --system --ingroup app app
 
 WORKDIR /app
 
@@ -32,7 +35,7 @@ COPY packages/api/package*.json ./packages/api/
 COPY packages/cli/package*.json ./packages/cli/
 COPY apps/web/package*.json ./apps/web/
 
-RUN npm install --omit=dev
+RUN npm ci --omit=dev
 
 # Copy compiled output and web dist from builder
 COPY --from=builder /app/packages/core/dist ./packages/core/dist
@@ -46,10 +49,12 @@ COPY --from=builder /app/prompts ./prompts
 COPY --from=builder /app/skills ./skills
 
 # Persistent data directory (use Railway Volumes / Docker volumes for persistence)
-RUN mkdir -p /app/data
+RUN mkdir -p /app/data && chown -R app:app /app/data
 
 ENV NODE_ENV=production
 ENV PORT=3000
+
+USER app
 
 EXPOSE 3000
 

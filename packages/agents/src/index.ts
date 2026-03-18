@@ -18,3 +18,15 @@ export type { Skill, SkillMetadata } from './skills.js'
 
 export { AgentMemory } from './memory.js'
 export type { MemoryOptions } from './memory.js'
+
+export { WorkflowGraph, CompiledGraph, END } from './graph.js'
+export type {
+  NodeHandler,
+  ConditionalRouter,
+  NodeExecution,
+  Checkpoint,
+  GraphRunResult,
+} from './graph.js'
+
+export { forge, ROLE_LIBRARY, getForgeCheckpoint, listForgeThreads, deleteForgeThread } from './forge.js'
+export type { ForgeAgent, ForgeOptions, ForgeResult, ForgeStep, ForgeEvent } from './forge.js'

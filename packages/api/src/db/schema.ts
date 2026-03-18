@@ -179,3 +179,57 @@ export const evalRuns = sqliteTable('eval_runs', {
   createdAt: text('created_at').default(sql`(datetime('now'))`),
   completedAt: text('completed_at'),
 })
+
+// ─── Forge Runs ───────────────────────────────────────────────────────────────
+// Persisted state for forge() executions.
+// Each row is one thread — can be resumed if status is 'interrupted'.
+
+export const forgeRuns = sqliteTable('forge_runs', {
+  id: text('id').primaryKey(),           // = threadId
+  goal: text('goal').notNull(),
+  agents: text('agents').notNull().default('[]'),
+  options: text('options').notNull().default('{}'),
+  state: text('state').notNull().default('{}'),
+  steps: text('steps').notNull().default('[]'),
+  currentStep: integer('current_step').default(0),
+  status: text('status').notNull().default('running'),  // running|interrupted|completed|failed
+  resumePrompt: text('resume_prompt'),
+  output: text('output').default(''),
+  costUsd: real('cost_usd').default(0),
+  durationMs: integer('duration_ms').default(0),
+  createdAt: text('created_at').default(sql`(datetime('now'))`),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`),
+})
+
+// ─── Studio Flows ─────────────────────────────────────────────────────────────
+// Visual workflows built in Forge Studio. Powered by forge() under the hood.
+
+export const studioFlows = sqliteTable('studio_flows', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  description: text('description').default(''),
+  definition: text('definition').notNull().default('{}'),  // JSON canvas: { nodes, edges, variables }
+  generatedCode: text('generated_code').default(''),
+  isDeployed: integer('is_deployed', { mode: 'boolean' }).default(false),
+  deployedAt: text('deployed_at'),
+  runCount: integer('run_count').default(0),
+  lastRunAt: text('last_run_at'),
+  createdAt: text('created_at').default(sql`(datetime('now'))`),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`),
+})
+
+// ─── Studio Runs ──────────────────────────────────────────────────────────────
+
+export const studioRuns = sqliteTable('studio_runs', {
+  id: text('id').primaryKey(),
+  flowId: text('flow_id').notNull(),
+  threadId: text('thread_id'),
+  inputs: text('inputs').default('{}'),
+  status: text('status').notNull().default('pending'),
+  output: text('output').default(''),
+  costUsd: real('cost_usd').default(0),
+  durationMs: integer('duration_ms').default(0),
+  error: text('error'),
+  createdAt: text('created_at').default(sql`(datetime('now'))`),
+  completedAt: text('completed_at'),
+})

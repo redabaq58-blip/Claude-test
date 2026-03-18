@@ -22,6 +22,8 @@ import { visionRouter } from './routes/vision.js'
 import { schedulesRouter } from './routes/schedules.js'
 import { batchesRouter, pollBatchStatus } from './routes/batches.js'
 import { evalsRouter } from './routes/evals.js'
+import { forgeRouter } from './routes/forge.js'
+import { studioRouter } from './routes/studio.js'
 import { scheduleEngine } from './services/scheduleEngine.js'
 import { db, schema } from './db/index.js'
 import { inArray } from 'drizzle-orm'
@@ -105,6 +107,8 @@ app.use('/api/vision', claudeLimiter, visionRouter)
 app.use('/api/schedules', generalLimiter, schedulesRouter)
 app.use('/api/batches', claudeLimiter, batchesRouter)
 app.use('/api/evals', claudeLimiter, evalsRouter)
+app.use('/api/forge', claudeLimiter, forgeRouter)    // forge() universal executor
+app.use('/api/studio', generalLimiter, studioRouter) // Forge Studio visual canvas
 
 // ─── Serve web dashboard (production) ────────────────────────────────────────
 if (serveWeb) {

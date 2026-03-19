@@ -51,6 +51,7 @@ export default function CommandPalette({ open, onClose }: CommandPaletteProps) {
     { id: 'nav-dash', label: 'Go to Dashboard', icon: '⬡', group: 'Navigation', action: () => go('/') },
     { id: 'nav-agents', label: 'Go to Agent Studio', icon: '◈', group: 'Navigation', action: () => go('/agents') },
     { id: 'nav-chat', label: 'Open Chat', icon: '◉', group: 'Navigation', action: () => go('/chat') },
+    { id: 'nav-playground', label: 'Open Playground', icon: '⬙', group: 'Navigation', action: () => go('/forge') },
     { id: 'nav-compare', label: 'Compare Models', icon: '⚖', group: 'Navigation', action: () => go('/compare') },
     { id: 'nav-templates', label: 'Browse Templates', icon: '⬛', group: 'Navigation', action: () => go('/templates') },
     { id: 'nav-workflows', label: 'Go to Workflows', icon: '⟳', group: 'Navigation', action: () => go('/workflows') },

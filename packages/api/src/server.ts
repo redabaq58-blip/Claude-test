@@ -24,6 +24,7 @@ import { batchesRouter, pollBatchStatus } from './routes/batches.js'
 import { evalsRouter } from './routes/evals.js'
 import { forgeRouter } from './routes/forge.js'
 import { studioRouter } from './routes/studio.js'
+import { playgroundRouter } from './routes/playground.js'
 import { scheduleEngine } from './services/scheduleEngine.js'
 import { db, schema } from './db/index.js'
 import { inArray } from 'drizzle-orm'
@@ -108,7 +109,8 @@ app.use('/api/schedules', generalLimiter, schedulesRouter)
 app.use('/api/batches', claudeLimiter, batchesRouter)
 app.use('/api/evals', claudeLimiter, evalsRouter)
 app.use('/api/forge', claudeLimiter, forgeRouter)    // forge() universal executor
-app.use('/api/studio', generalLimiter, studioRouter) // Forge Studio visual canvas
+app.use('/api/studio', generalLimiter, studioRouter)   // Forge Studio visual canvas
+app.use('/api/playground', claudeLimiter, playgroundRouter) // Playground ephemeral runs
 
 // ─── Serve web dashboard (production) ────────────────────────────────────────
 if (serveWeb) {

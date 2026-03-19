@@ -269,7 +269,6 @@ Always tailor advice to the specific role, company type, and career stage.`,
     ],
     tags: ['career', 'resume', 'interviews', 'professional-development'],
   },
-]
 
   // ─── Sales ────────────────────────────────────────────────────────────────
 
@@ -727,6 +726,7 @@ Tone: warm, human, direct. Never defensive, never dismissive, never over-promisi
     ],
     tags: ['operations', 'customer-success', 'escalation', 'cx', 'support'],
   },
+]
 
 export function getTemplate(id: string): AgentTemplate | undefined {
   return AGENT_TEMPLATES.find((t) => t.id === id)

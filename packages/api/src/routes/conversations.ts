@@ -78,7 +78,7 @@ conversationsRouter.post('/:id/message', async (req, res) => {
   const [agentRow] = await db.select().from(schema.agents).where(eq(schema.agents.id, conv.agentId))
   if (!agentRow) return fail(res, 'Agent not found', 404)
 
-  const { message } = req.body
+  const { message, occupationSuffix } = req.body
   if (!message || typeof message !== 'string' || !message.trim()) {
     return fail(res, 'message must be a non-empty string')
   }
@@ -92,6 +92,12 @@ conversationsRouter.post('/:id/message', async (req, res) => {
   try { messages = JSON.parse(conv.messages ?? '[]') } catch { messages = [] }
   const userMsg: Message = { id: uuidv4(), role: 'user', content: message, timestamp: new Date().toISOString() }
   messages.push(userMsg)
+
+  // Build final system prompt — append occupation suffix if provided by client
+  const baseSystemPrompt = agentRow.systemPrompt ?? ''
+  const finalSystemPrompt = occupationSuffix && typeof occupationSuffix === 'string'
+    ? `${baseSystemPrompt}\n\n${occupationSuffix}`.trim()
+    : baseSystemPrompt
 
   // Set up SSE
   res.setHeader('Content-Type', 'text/event-stream')
@@ -110,11 +116,11 @@ conversationsRouter.post('/:id/message', async (req, res) => {
 
     let fullText = ''
     // Build context string for token estimation (system + all messages)
-    const contextStr = (agentRow.systemPrompt ?? '') + apiMessages.map((m) => m.content).join('')
+    const contextStr = finalSystemPrompt + apiMessages.map((m) => m.content).join('')
 
     for await (const chunk of client.stream(apiMessages, {
       model,
-      systemPrompt: agentRow.systemPrompt ?? '',
+      systemPrompt: finalSystemPrompt,
       maxTokens: agentRow.maxTokens ?? 8192,
     })) {
       if (chunk.type === 'text' && chunk.text) {

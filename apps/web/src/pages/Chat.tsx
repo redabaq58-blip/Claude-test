@@ -156,11 +156,17 @@ export default function Chat() {
         setConversations((prev) => [newConv, ...prev])
       }
 
-      // Stream the response
+      // Stream the response — include active occupation suffix if set
+      const activeOccupation = (() => {
+        try { return JSON.parse(localStorage.getItem('claudeforge:activeOccupation') ?? 'null') } catch { return null }
+      })()
       const response = await fetch(`/api/conversations/${convId}/message`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text }),
+        body: JSON.stringify({
+          message: text,
+          ...(activeOccupation?.systemPromptSuffix ? { occupationSuffix: activeOccupation.systemPromptSuffix } : {}),
+        }),
       })
 
       if (!response.body) throw new Error('No response body')

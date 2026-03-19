@@ -1,5 +1,4 @@
 # ── Build stage ──────────────────────────────────────────────────────────────
-# v1.0.1 — bump this label to force a clean Railway rebuild when needed
 FROM node:22-slim AS builder
 
 WORKDIR /app
@@ -52,9 +51,10 @@ COPY --from=builder /app/skills ./skills
 # Persistent data directory (use Railway Volumes / Docker volumes for persistence)
 RUN mkdir -p /app/data && chown -R app:app /app/data
 
+LABEL version="1.0.2" maintainer="ClaudeForge"
+
 ENV NODE_ENV=production
 ENV PORT=3000
-ENV APP_VERSION=1.0.1
 
 USER app
 

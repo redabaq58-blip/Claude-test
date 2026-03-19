@@ -1,4 +1,5 @@
 # ── Build stage ──────────────────────────────────────────────────────────────
+# v1.0.1 — bump this label to force a clean Railway rebuild when needed
 FROM node:22-slim AS builder
 
 WORKDIR /app

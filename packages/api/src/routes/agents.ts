@@ -150,21 +150,30 @@ agentsRouter.post('/:id/run', async (req, res) => {
     const customToolDefs = JSON.parse(agentRow.tools ?? '[]') as CustomToolDef[]
     const customTools = customToolDefs
       .filter(d => d.name && d.url)
-      .map(d => ({
-        name: d.name,
-        description: d.description || `Call ${d.url}`,
-        inputSchema: (() => { try { return JSON.parse(d.inputSchema ?? '{}') } catch { return {} } })(),
-        handler: async (inputs: Record<string, unknown>) => {
-          const method = (d.method ?? 'POST').toUpperCase()
-          const extraHeaders: Record<string, string> = (() => { try { return JSON.parse(d.headers ?? '{}') } catch { return {} } })()
-          const response = await fetch(d.url, {
-            method,
-            headers: { 'Content-Type': 'application/json', ...extraHeaders },
-            ...(method !== 'GET' && { body: JSON.stringify(inputs) }),
-          })
-          return response.text()
-        },
-      }))
+      .map(d => {
+        const schema = (() => { try { return JSON.parse(d.inputSchema ?? '{}') } catch { return {} } })()
+        return {
+          definition: {
+            name: d.name,
+            description: d.description || `Call ${d.url}`,
+            input_schema: {
+              type: 'object' as const,
+              properties: schema.properties ?? {},
+              required: schema.required,
+            },
+          },
+          handler: async (inputs: Record<string, unknown>) => {
+            const method = (d.method ?? 'POST').toUpperCase()
+            const extraHeaders: Record<string, string> = (() => { try { return JSON.parse(d.headers ?? '{}') } catch { return {} } })()
+            const response = await fetch(d.url, {
+              method,
+              headers: { 'Content-Type': 'application/json', ...extraHeaders },
+              ...(method !== 'GET' && { body: JSON.stringify(inputs) }),
+            })
+            return response.text()
+          },
+        }
+      })
 
     const tools = [...mcpTools, ...customTools]
 

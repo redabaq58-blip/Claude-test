@@ -113,8 +113,13 @@ export default function AgentStudio() {
 
   const handleSave = async () => {
     if (!form.name.trim()) return
-    if (editAgent) { await agentsApi.update(editAgent.id, form) }
-    else { await agentsApi.create(form) }
+    const payload = {
+      ...form,
+      mcpServers: form.mcpServers as unknown as string,  // API serializes on server; send as array
+      tools: form.tools as unknown as string,
+    }
+    if (editAgent) { await agentsApi.update(editAgent.id, payload) }
+    else { await agentsApi.create(payload) }
     setShowForm(false)
     load()
   }
@@ -399,7 +404,6 @@ export default function AgentStudio() {
                   </div>
                 )}
               </div>
-            </div>
             </div>
             </div>
             <div className="flex gap-3 px-6 py-4 border-t border-gray-800 flex-shrink-0 justify-end">

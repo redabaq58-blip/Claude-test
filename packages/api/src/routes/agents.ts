@@ -25,7 +25,8 @@ agentsRouter.get('/:id', async (req, res) => {
 
 // POST /api/agents — create agent
 agentsRouter.post('/', async (req, res) => {
-  const { name, description, model, systemPrompt, maxTokens, temperature, cacheEnabled, thinkingEnabled, thinkingBudget } = req.body
+  const { name, description, model, systemPrompt, maxTokens, temperature,
+          cacheEnabled, thinkingEnabled, thinkingBudget, mcpServers, tools } = req.body
   if (!name) return fail(res, 'name is required')
 
   const agent = {
@@ -39,6 +40,8 @@ agentsRouter.post('/', async (req, res) => {
     cacheEnabled: cacheEnabled ?? false,
     thinkingEnabled: thinkingEnabled ?? false,
     thinkingBudget: thinkingBudget ?? 8000,
+    mcpServers: JSON.stringify(Array.isArray(mcpServers) ? mcpServers : []),
+    tools: JSON.stringify(Array.isArray(tools) ? tools : []),
   }
 
   await db.insert(schema.agents).values(agent)
@@ -51,7 +54,8 @@ agentsRouter.put('/:id', async (req, res) => {
   const [existing] = await db.select().from(schema.agents).where(eq(schema.agents.id, req.params.id))
   if (!existing) return fail(res, 'Agent not found', 404)
 
-  const { name, description, model, systemPrompt, maxTokens, temperature, isActive, cacheEnabled, thinkingEnabled, thinkingBudget } = req.body
+  const { name, description, model, systemPrompt, maxTokens, temperature, isActive,
+          cacheEnabled, thinkingEnabled, thinkingBudget, mcpServers, tools } = req.body
   await db
     .update(schema.agents)
     .set({
@@ -65,6 +69,8 @@ agentsRouter.put('/:id', async (req, res) => {
       ...(cacheEnabled !== undefined && { cacheEnabled }),
       ...(thinkingEnabled !== undefined && { thinkingEnabled }),
       ...(thinkingBudget !== undefined && { thinkingBudget }),
+      ...(mcpServers !== undefined && { mcpServers: JSON.stringify(Array.isArray(mcpServers) ? mcpServers : []) }),
+      ...(tools !== undefined && { tools: JSON.stringify(Array.isArray(tools) ? tools : []) }),
       updatedAt: new Date().toISOString(),
     })
     .where(eq(schema.agents.id, req.params.id))
@@ -135,13 +141,32 @@ agentsRouter.post('/:id/run', async (req, res) => {
   try {
     const mcpServers = JSON.parse(agentRow.mcpServers ?? '[]') as string[]
     const registry = MCPRegistry.withDefaults()
-    const tools = mcpServers.flatMap((name) => {
-      try {
-        return registry.getTools(name)
-      } catch {
-        return []
-      }
+    const mcpTools = mcpServers.flatMap((name) => {
+      try { return registry.getTools(name) } catch { return [] }
     })
+
+    // Load custom HTTP API tools stored in the `tools` column
+    interface CustomToolDef { name: string; description: string; url: string; method?: string; headers?: string; inputSchema?: string }
+    const customToolDefs = JSON.parse(agentRow.tools ?? '[]') as CustomToolDef[]
+    const customTools = customToolDefs
+      .filter(d => d.name && d.url)
+      .map(d => ({
+        name: d.name,
+        description: d.description || `Call ${d.url}`,
+        inputSchema: (() => { try { return JSON.parse(d.inputSchema ?? '{}') } catch { return {} } })(),
+        handler: async (inputs: Record<string, unknown>) => {
+          const method = (d.method ?? 'POST').toUpperCase()
+          const extraHeaders: Record<string, string> = (() => { try { return JSON.parse(d.headers ?? '{}') } catch { return {} } })()
+          const response = await fetch(d.url, {
+            method,
+            headers: { 'Content-Type': 'application/json', ...extraHeaders },
+            ...(method !== 'GET' && { body: JSON.stringify(inputs) }),
+          })
+          return response.text()
+        },
+      }))
+
+    const tools = [...mcpTools, ...customTools]
 
     const agent = new ClaudeAgent({
       name: agentRow.name,

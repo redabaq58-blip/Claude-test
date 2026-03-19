@@ -1,8 +1,23 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { agentsApi, streamAgent, enhancePrompt, agentCloneExportApi } from '../api'
-import type { Agent, EnhanceResult } from '../api'
+import type { Agent, CustomToolDef, EnhanceResult } from '../api'
 import MarkdownRenderer from '../components/MarkdownRenderer'
+
+const MCP_SERVERS = [
+  { id: 'web',        label: 'Web',        desc: 'Fetch URLs, search the web' },
+  { id: 'filesystem', label: 'Filesystem', desc: 'Read & write local files' },
+  { id: 'git',        label: 'Git',        desc: 'Log, diff, commit operations' },
+  { id: 'database',   label: 'Database',   desc: 'Query SQLite databases' },
+  { id: 'code',       label: 'Code',       desc: 'Execute code in a sandbox' },
+]
+
+function parseMcp(raw?: string): string[] {
+  try { return JSON.parse(raw ?? '[]') } catch { return [] }
+}
+function parseTools(raw?: string): CustomToolDef[] {
+  try { return JSON.parse(raw ?? '[]') } catch { return [] }
+}
 
 const MODELS = [
   { value: 'auto', label: 'Auto (smart routing)' },
@@ -45,6 +60,8 @@ export default function AgentStudio() {
   const [form, setForm] = useState({
     name: '', description: '', model: 'auto', systemPrompt: '',
     cacheEnabled: false, thinkingEnabled: false, thinkingBudget: 8000,
+    mcpServers: [] as string[],
+    tools: [] as CustomToolDef[],
   })
 
   const load = () => agentsApi.list().then(setAgents).finally(() => setLoading(false))
@@ -59,7 +76,7 @@ export default function AgentStudio() {
 
   const openCreate = () => {
     setEditAgent(null)
-    setForm({ name: '', description: '', model: 'auto', systemPrompt: '', cacheEnabled: false, thinkingEnabled: false, thinkingBudget: 8000 })
+    setForm({ name: '', description: '', model: 'auto', systemPrompt: '', cacheEnabled: false, thinkingEnabled: false, thinkingBudget: 8000, mcpServers: [], tools: [] })
     setShowForm(true)
   }
 
@@ -67,13 +84,32 @@ export default function AgentStudio() {
     setEditAgent(agent)
     setForm({
       name: agent.name, description: agent.description, model: agent.model, systemPrompt: agent.systemPrompt,
-      cacheEnabled: (agent as { cacheEnabled?: boolean }).cacheEnabled ?? false,
-      thinkingEnabled: (agent as { thinkingEnabled?: boolean }).thinkingEnabled ?? false,
-      thinkingBudget: (agent as { thinkingBudget?: number }).thinkingBudget ?? 8000,
+      cacheEnabled: agent.cacheEnabled ?? false,
+      thinkingEnabled: agent.thinkingEnabled ?? false,
+      thinkingBudget: agent.thinkingBudget ?? 8000,
+      mcpServers: parseMcp(agent.mcpServers),
+      tools: parseTools(agent.tools),
     })
     setShowForm(true)
     setMenuOpen(null)
   }
+
+  const toggleMcp = (srv: string) => setForm(f => ({
+    ...f,
+    mcpServers: f.mcpServers.includes(srv)
+      ? f.mcpServers.filter(s => s !== srv)
+      : [...f.mcpServers, srv],
+  }))
+
+  const addTool = () => setForm(f => ({
+    ...f,
+    tools: [...f.tools, { name: '', description: '', url: '', method: 'POST', headers: '{}', inputSchema: '{"type":"object","properties":{}}' }],
+  }))
+
+  const removeTool = (i: number) => setForm(f => ({ ...f, tools: f.tools.filter((_, idx) => idx !== i) }))
+
+  const updateTool = (i: number, key: keyof CustomToolDef, val: string) =>
+    setForm(f => ({ ...f, tools: f.tools.map((t, idx) => idx === i ? { ...t, [key]: val } : t) }))
 
   const handleSave = async () => {
     if (!form.name.trim()) return
@@ -192,11 +228,14 @@ export default function AgentStudio() {
 
       {/* Create/Edit form */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-          <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 w-full max-w-lg">
-            <h2 className="text-lg font-semibold text-white mb-5">
-              {editAgent ? 'Edit Agent' : 'Create Agent'}
-            </h2>
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-lg flex flex-col max-h-[90vh]">
+            <div className="px-6 pt-6 pb-4 border-b border-gray-800 flex-shrink-0">
+              <h2 className="text-lg font-semibold text-white">
+                {editAgent ? 'Edit Agent' : 'Create Agent'}
+              </h2>
+            </div>
+            <div className="overflow-y-auto flex-1 px-6 py-4">
             <div className="space-y-4">
               <div>
                 <label className="block text-sm text-gray-400 mb-1">Name *</label>
@@ -238,7 +277,84 @@ export default function AgentStudio() {
                 <div className="text-xs text-gray-600 text-right mt-1">{form.systemPrompt.length} chars</div>
               </div>
 
-              {/* Feature flags */}
+              {/* MCP Tools */}
+              <div className="pt-2 border-t border-gray-800">
+                <div className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-3">MCP Tools</div>
+                <div className="space-y-2">
+                  {MCP_SERVERS.map(srv => (
+                    <label key={srv.id} className="flex items-center gap-3 cursor-pointer group">
+                      <input
+                        type="checkbox"
+                        checked={form.mcpServers.includes(srv.id)}
+                        onChange={() => toggleMcp(srv.id)}
+                        className="w-4 h-4 rounded border-gray-600 bg-gray-800 text-brand-500 flex-shrink-0"
+                      />
+                      <div>
+                        <span className="text-white text-sm">{srv.label}</span>
+                        <span className="text-gray-600 text-xs ml-2">— {srv.desc}</span>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Custom API Tools */}
+              <div className="pt-2 border-t border-gray-800">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">Custom API Tools</div>
+                  <button type="button" onClick={addTool} className="text-xs text-brand-400 hover:text-brand-300 font-medium">+ Add Tool</button>
+                </div>
+                {form.tools.length === 0 && (
+                  <p className="text-xs text-gray-600">Give this agent custom HTTP API tools — weather, CRM, internal APIs, etc.</p>
+                )}
+                {form.tools.map((tool, i) => (
+                  <div key={i} className="mb-3 p-3 bg-gray-800 rounded-lg border border-gray-700 space-y-2">
+                    <div className="flex gap-2 items-center">
+                      <input
+                        placeholder="tool_name (snake_case)"
+                        value={tool.name}
+                        onChange={e => updateTool(i, 'name', e.target.value)}
+                        className="flex-1 text-xs bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-gray-200 focus:outline-none focus:border-brand-500"
+                      />
+                      <select
+                        value={tool.method ?? 'POST'}
+                        onChange={e => updateTool(i, 'method', e.target.value)}
+                        className="text-xs bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-gray-200 focus:outline-none"
+                      >
+                        <option>POST</option><option>GET</option><option>PUT</option><option>DELETE</option>
+                      </select>
+                      <button type="button" onClick={() => removeTool(i)} className="text-gray-500 hover:text-red-400 px-1 text-lg leading-none">×</button>
+                    </div>
+                    <input
+                      placeholder="What this tool does (Claude reads this)"
+                      value={tool.description}
+                      onChange={e => updateTool(i, 'description', e.target.value)}
+                      className="w-full text-xs bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-gray-200 focus:outline-none focus:border-brand-500"
+                    />
+                    <input
+                      placeholder="https://api.example.com/endpoint"
+                      value={tool.url}
+                      onChange={e => updateTool(i, 'url', e.target.value)}
+                      className="w-full text-xs bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-gray-200 focus:outline-none focus:border-brand-500"
+                    />
+                    <input
+                      placeholder='Auth headers JSON: {"X-API-Key": "sk-..."}'
+                      value={tool.headers ?? '{}'}
+                      onChange={e => updateTool(i, 'headers', e.target.value)}
+                      className="w-full text-xs bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-gray-200 focus:outline-none focus:border-brand-500 font-mono"
+                    />
+                    <textarea
+                      placeholder={'Input schema: {"type":"object","properties":{"q":{"type":"string","description":"search query"}}}'}
+                      value={tool.inputSchema ?? '{}'}
+                      onChange={e => updateTool(i, 'inputSchema', e.target.value)}
+                      rows={2}
+                      className="w-full text-xs bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-gray-200 focus:outline-none focus:border-brand-500 resize-none font-mono"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              {/* Advanced */}
               <div className="space-y-3 pt-2 border-t border-gray-800">
                 <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">Advanced Features</div>
                 <label className="flex items-center gap-3 cursor-pointer">
@@ -284,7 +400,9 @@ export default function AgentStudio() {
                 )}
               </div>
             </div>
-            <div className="flex gap-3 mt-6 justify-end">
+            </div>
+            </div>
+            <div className="flex gap-3 px-6 py-4 border-t border-gray-800 flex-shrink-0 justify-end">
               <button onClick={() => setShowForm(false)} className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg text-sm">
                 Cancel
               </button>
@@ -361,6 +479,12 @@ export default function AgentStudio() {
                       {agent.model.replace('claude-', '').replace('-20251001', '')}
                     </span>
                     {agent.isActive && <span className="w-2 h-2 bg-green-400 rounded-full" title="Active" />}
+                    {parseMcp(agent.mcpServers).map(srv => (
+                      <span key={srv} className="px-1.5 py-0.5 rounded text-xs bg-blue-950 text-blue-400 border border-blue-900">{srv}</span>
+                    ))}
+                    {parseTools(agent.tools).filter(t => t.name).map((t, i) => (
+                      <span key={i} className="px-1.5 py-0.5 rounded text-xs bg-amber-950 text-amber-400 border border-amber-900">🔧 {t.name}</span>
+                    ))}
                   </div>
                   {agent.description && <p className="text-gray-500 text-sm mt-1 truncate max-w-lg">{agent.description}</p>}
                 </div>

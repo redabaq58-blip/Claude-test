@@ -177,6 +177,8 @@ export default function ForgeStudio() {
   const [runInputs, setRunInputs] = useState<Record<string, string>>({})
   const [running, setRunning] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [deploying, setDeploying] = useState(false)
+  const [deployResult, setDeployResult] = useState<{ endpoint: string; curlExample: string } | null>(null)
   const [tab, setTab] = useState<'canvas' | 'runs'>('canvas')
   const [inputVars, setInputVars] = useState<string[]>([])
   const [showInputModal, setShowInputModal] = useState(false)
@@ -309,40 +311,47 @@ export default function ForgeStudio() {
     ))
   }
 
-  // ── Save flow ──────────────────────────────────────────────────────────────
-  const saveFlow = async () => {
+  // ── Save flow — returns the flow ID so callers don't depend on async state ─
+  const saveFlow = async (): Promise<string | null> => {
     const definition = { nodes, edges, variables: inputVars }
-    if (activeFlowId) {
-      await studioApi.updateFlow(activeFlowId, { name: flowName, description: flowDescription, definition })
+    let flowId = activeFlowId
+    if (flowId) {
+      await studioApi.updateFlow(flowId, { name: flowName, description: flowDescription, definition })
     } else {
       const result = await studioApi.createFlow({ name: flowName, description: flowDescription, definition })
-      setActiveFlowId(result.id)
+      flowId = result.id
+      setActiveFlowId(flowId)
     }
     const updated = await studioApi.listFlows()
     setFlows(updated)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
+    return flowId
   }
 
   // ── View Code ─────────────────────────────────────────────────────────────
   const viewCode = async () => {
-    if (!activeFlowId) {
-      await saveFlow()
-    }
-    if (activeFlowId) {
-      const { code } = await studioApi.getCode(activeFlowId)
-      setGeneratedCode(code)
-      setShowCode(true)
-    }
+    const flowId = activeFlowId ?? await saveFlow()
+    if (!flowId) return
+    const { code } = await studioApi.getCode(flowId)
+    setGeneratedCode(code)
+    setShowCode(true)
   }
 
   // ── Deploy ────────────────────────────────────────────────────────────────
   const deploy = async () => {
-    if (!activeFlowId) await saveFlow()
-    if (activeFlowId) {
-      await studioApi.deploy(activeFlowId)
+    setDeploying(true)
+    try {
+      const flowId = activeFlowId ?? await saveFlow()
+      if (!flowId) return
+      const result = await studioApi.deploy(flowId)
+      setDeployResult({ endpoint: result.endpoint, curlExample: result.curlExample })
       const updated = await studioApi.listFlows()
       setFlows(updated)
+    } catch (err) {
+      console.error('Deploy failed', err)
+    } finally {
+      setDeploying(false)
     }
   }
 
@@ -528,12 +537,27 @@ export default function ForgeStudio() {
               title="Set input variables before running">
               ▶ Run
             </button>
-            <button onClick={deploy}
-              className="text-xs px-3 py-1.5 rounded font-medium bg-brand-600 hover:bg-brand-500 text-white">
-              🚀 Deploy
+            <button onClick={deploy} disabled={deploying}
+              className="text-xs px-3 py-1.5 rounded font-medium bg-brand-600 hover:bg-brand-500 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1">
+              {deploying ? '⏳' : '🚀'} {deploying ? 'Deploying…' : 'Deploy'}
             </button>
           </div>
         </header>
+
+        {/* Deploy success banner */}
+        {deployResult && (
+          <div className="flex items-center gap-3 px-4 py-2 bg-green-950 border-b border-green-800 text-xs">
+            <span className="text-green-400 font-semibold">✓ Deployed</span>
+            <span className="text-green-300">Endpoint:</span>
+            <code className="text-brand-300 font-mono flex-1 truncate">{window.location.origin}{deployResult.endpoint}</code>
+            <button
+              onClick={() => navigator.clipboard.writeText(`${window.location.origin}${deployResult.endpoint}`)}
+              className="text-green-500 hover:text-green-300 px-2 py-0.5 rounded border border-green-800 hover:border-green-600">
+              Copy
+            </button>
+            <button onClick={() => setDeployResult(null)} className="text-green-700 hover:text-green-400 ml-1">✕</button>
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="flex border-b border-gray-800 bg-gray-900 px-4">
@@ -577,7 +601,7 @@ export default function ForgeStudio() {
                 {/* Arrow marker — must be defined before edges that use it */}
                 <defs>
                   <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
-                    <polygon points="0 0, 8 3, 0 6" fill="#4b5563" />
+                    <polygon points="0 0, 8 3, 0 6" fill="#818cf8" />
                   </marker>
                 </defs>
 
@@ -596,7 +620,7 @@ export default function ForgeStudio() {
                       <path
                         d={`M ${x1} ${y1} C ${cx} ${y1}, ${cx} ${y2}, ${x2} ${y2}`}
                         fill="none"
-                        stroke="#4b5563"
+                        stroke="#818cf8"
                         strokeWidth={2}
                         markerEnd="url(#arrowhead)"
                       />

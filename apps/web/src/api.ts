@@ -24,6 +24,15 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+export interface CustomToolDef {
+  name: string
+  description: string
+  url: string
+  method?: string
+  headers?: string
+  inputSchema?: string
+}
+
 export interface Agent {
   id: string
   name: string
@@ -31,6 +40,11 @@ export interface Agent {
   model: string
   systemPrompt: string
   isActive: boolean
+  mcpServers?: string        // JSON string: ["web","filesystem"]
+  tools?: string             // JSON string: CustomToolDef[]
+  cacheEnabled?: boolean
+  thinkingEnabled?: boolean
+  thinkingBudget?: number
   createdAt: string
   updatedAt: string
 }

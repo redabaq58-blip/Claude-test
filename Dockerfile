@@ -54,6 +54,7 @@ RUN mkdir -p /app/data && chown -R app:app /app/data
 
 ENV NODE_ENV=production
 ENV PORT=3000
+ENV APP_VERSION=1.0.1
 
 USER app
 

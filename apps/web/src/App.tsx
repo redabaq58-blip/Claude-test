@@ -10,7 +10,6 @@ import Analytics from './pages/Analytics'
 import Templates from './pages/Templates'
 import History from './pages/History'
 import Prompts from './pages/Prompts'
-import Occupations from './pages/Occupations'
 import Schedules from './pages/Schedules'
 import BatchJobs from './pages/BatchJobs'
 import Evals from './pages/Evals'
@@ -32,7 +31,6 @@ const NAV = [
   { to: '/batches', label: 'Batch Jobs', icon: '📦' },
   { to: '/evals', label: 'Evaluations', icon: '🧪' },
   { to: '/history', label: 'History', icon: '◷' },
-  { to: '/occupations', label: 'Occupations', icon: '◑' },
 ]
 
 function AppInner() {
@@ -110,7 +108,6 @@ function AppInner() {
           <Route path="/templates" element={<Templates />} />
           <Route path="/history" element={<History />} />
           <Route path="/prompts" element={<Prompts />} />
-          <Route path="/occupations" element={<Occupations />} />
           <Route path="/schedules" element={<Schedules />} />
           <Route path="/batches" element={<BatchJobs />} />
           <Route path="/evals" element={<Evals />} />

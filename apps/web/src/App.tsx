@@ -93,7 +93,7 @@ function AppInner() {
 
         {/* Footer */}
         <div className="px-5 py-3 border-t border-gray-800 text-xs text-gray-600">
-          v2.1 · Anthropic Ecosystem
+          v2.2 · Anthropic Ecosystem
         </div>
       </aside>
 

@@ -372,8 +372,9 @@ export const agentCloneExportApi = {
 // ─── Streaming helper ────────────────────────────────────────────────────────
 
 export interface StreamChunk {
-  type: 'text' | 'done' | 'error'
+  type: 'text' | 'thinking' | 'done' | 'error'
   text?: string
+  thinking?: string
   error?: string
   runId?: string
   usage?: { inputTokens: number; outputTokens: number; costUsd: number; durationMs: number; model: string }
@@ -469,14 +470,20 @@ export const forgeApi = {
 // ─── Playground API ────────────────────────────────────────────────────────────
 
 export async function* streamPlayground(
-  userMessage: string,
   model: string,
-  systemPrompt?: string
+  options: {
+    userMessage?: string
+    messages?: Array<{ role: string; content: string }>
+    systemPrompt?: string
+    temperature?: number
+    thinkingEnabled?: boolean
+    thinkingBudget?: number
+  }
 ): AsyncGenerator<StreamChunk> {
   const response = await fetch('/api/playground/stream', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ userMessage, model, systemPrompt }),
+    body: JSON.stringify({ model, ...options }),
   })
 
   if (!response.ok || !response.body) {

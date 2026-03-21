@@ -58,6 +58,7 @@ Then open **http://localhost:3000** in your browser. Done!
 
 | Feature | Description |
 |---------|-------------|
+| **Playground** | Professional prompt testing environment — multi-turn conversation, A/B model split-view, extended thinking, ✨ prompt enhancement, `{{variable}}` templates, temperature control, output format toggle (Markdown / Raw / JSON), live token estimator, run history, and copy-output |
 | **Agent Studio** | Create AI agents with custom instructions, choose models, run them |
 | **Chat** | Have multi-turn conversations with any of your agents |
 | **Templates** | 10 ready-to-use agents: Research, Code Review, Writing Coach, SQL Expert... |
@@ -66,7 +67,7 @@ Then open **http://localhost:3000** in your browser. Done!
 | **MCP Hub** | Give agents access to tools: read files, search the web, run git commands |
 | **Analytics** | See how many tokens you've used and how much it's cost |
 | **Run History** | Full log of every agent run with inputs, outputs, and costs |
-| **Prompt Library** | 20+ ready-to-use expert prompts |
+| **Prompt Library** | 20+ ready-to-use expert prompts with variable substitution |
 
 ---
 
@@ -200,6 +201,33 @@ const agent = new ClaudeAgent({
 })
 ```
 
+### Playground API
+
+The Playground endpoint is ephemeral (no DB writes) and streams responses as Server-Sent Events:
+
+```
+POST /api/playground/stream
+```
+
+| Body field | Type | Default | Description |
+|---|---|---|---|
+| `userMessage` | `string` | — | Single-turn shorthand (used when `messages` is absent) |
+| `messages` | `Array<{role,content}>` | — | Full conversation history for multi-turn sessions |
+| `model` | `string` | `auto` | `claude-haiku-4-5-20251001` / `claude-sonnet-4-6` / `claude-opus-4-6` / `auto` |
+| `systemPrompt` | `string` | `""` | System instruction prepended to the conversation |
+| `temperature` | `number` | `0.7` | 0.0–1.0 (forced to 1 when `thinkingEnabled` is true) |
+| `thinkingEnabled` | `boolean` | `false` | Enable extended thinking (Claude reasons before answering) |
+| `thinkingBudget` | `number` | `8000` | Token budget for thinking (1 024–32 000) |
+
+SSE event types emitted:
+
+```jsonc
+{ "type": "text",     "text": "..." }              // streamed output token
+{ "type": "thinking", "thinking": "..." }           // reasoning chunk (when enabled)
+{ "type": "done",     "usage": { "inputTokens": 0, "outputTokens": 0, "costUsd": 0, "durationMs": 0, "model": "..." } }
+{ "type": "error",    "error": "..." }
+```
+
 ### Available models
 
 | Model | ID | Best for |
@@ -230,6 +258,7 @@ GET    /api/runs                     All runs (filterable + paginated)
 GET    /api/analytics/costs          Cost breakdown by model
 GET    /api/analytics/usage          Token usage over time
 GET    /api/analytics/runs           Run stats by agent
+POST   /api/playground/stream        Ephemeral prompt testing (SSE streaming, multi-turn, thinking)
 POST   /api/compare                  Compare models on same prompt
 GET    /api/conversations            List conversations
 POST   /api/conversations            Start conversation

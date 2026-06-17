@@ -78,7 +78,11 @@ Then open **http://localhost:3000** in your browser. Done!
 1. Fork this repo on GitHub
 2. Go to **https://railway.app** and create a new project from your fork
 3. Add the environment variable `ANTHROPIC_API_KEY` in Railway's settings
-4. Deploy — Railway detects the Dockerfile automatically
+4. Add persistent storage:
+   - simplest: attach a Railway Volume mounted at `/app/data` and keep `DATABASE_URL=./data/claude-forge.db`
+   - stronger: use Turso/libSQL and set `DATABASE_URL=libsql://...` plus `DATABASE_AUTH_TOKEN`
+5. Leave `API_SECRET` unset for the current bundled dashboard; setting it now blocks browser API calls. Add real dashboard auth before enabling it on a public service.
+6. Deploy - Railway detects the Dockerfile automatically
 
 ### Any Docker host (Render, Fly.io, DigitalOcean, AWS...)
 
@@ -91,7 +95,7 @@ docker build -t claudeforge .
 docker run -p 3000:3000 -e ANTHROPIC_API_KEY=your-key claudeforge
 ```
 
-The app exposes port `3000` and has a health check at `/health`.
+The app exposes port `3000` and has health checks at `/health` and `/api/health`.
 
 ---
 

@@ -7,7 +7,7 @@
     "claude-forge": "dist/index.js"
   },
   "scripts": {
-    "build": "tsc && chmod +x dist/index.js",
+    "build": "tsc && node -e \"require('fs').chmodSync('dist/index.js', 0o755)\"",
     "dev": "tsx src/index.ts",
     "clean": "rm -rf dist"
   },

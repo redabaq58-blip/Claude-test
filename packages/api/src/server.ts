@@ -33,6 +33,7 @@ import { authMiddleware } from './middleware/auth.js'
 
 const app = express()
 const PORT = process.env.PORT ?? 3000
+const APP_VERSION = process.env.APP_VERSION ?? '1.0.2'
 
 // Resolve path to built web dashboard (works both locally and on Railway)
 const webDist = resolve(process.cwd(), 'apps/web/dist')
@@ -74,14 +75,17 @@ const claudeLimiter = rateLimit({
 
 // ─── Health check ─────────────────────────────────────────────────────────────
 
-app.get('/health', (_req, res) => {
+const healthHandler: express.RequestHandler = (_req, res) => {
   ok(res, {
     status: 'ok',
     platform: 'ClaudeForge',
-    version: '1.0.1',
+    version: APP_VERSION,
     timestamp: new Date().toISOString(),
   })
-})
+}
+
+app.get('/health', healthHandler)
+app.get('/api/health', healthHandler)
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 // When API_SECRET env var is set, all /api/* routes require:

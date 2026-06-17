@@ -142,7 +142,7 @@ npm run start:web  # Web dashboard only (dev, port 5173)
 | `NODE_ENV` | No | `development` | Set to `production` when deploying |
 | `DEFAULT_MODEL` | No | `auto` | Default Claude model (`opus`/`sonnet`/`haiku`/`auto`) |
 | `COST_LIMIT_PER_RUN` | No | `0` (unlimited) | Max USD per agent run |
-| `API_SECRET` | No | — | Bearer token to protect all `/api/*` routes — **set this for any internet-facing deployment** |
+| `API_SECRET` | No | — | Bearer token for API-only clients; leave unset for the bundled dashboard until dashboard auth is implemented |
 | `CORS_ORIGIN` | No | — | Allowed CORS origin in production (e.g. `https://your-dashboard.example.com`) |
 
 ### Project layout
